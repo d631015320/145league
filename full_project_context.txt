@@ -1,0 +1,2548 @@
+PROJECT SCAN TIMESTAMP: 2026-01-02T07:40:39.375Z
+
+
+
+================================================
+FILE PATH: src\App.css
+================================================
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+
+================================================
+FILE PATH: src\App.jsx
+================================================
+import React, { useState, useEffect, useMemo } from 'react';
+
+// --- 1. 核心库与工具 ---
+import { 
+    db, auth, collection, onSnapshot, query, 
+    addDoc, updateDoc, doc, deleteDoc, setDoc,
+    signInWithEmailAndPassword, onAuthStateChanged 
+} from './lib/firebase';
+
+import { GAMES_PER_SEASON } from './lib/utils';
+
+// --- 2. 引入公共组件 ---
+import Icon from './components/Icon.jsx';
+import Clock from './components/Clock.jsx';
+import SecurityModal from './components/SecurityModal.jsx';
+import SettlementModal from './components/SettlementModal.jsx';
+// 注意：PlayerProfileModal 如果你之前已经有独立文件就不用动，如果没有，请告诉我
+import PlayerProfileModal from './components/PlayerProfileModal'; 
+
+// --- 3. 引入刚才拆分的 Tab 页组件 ---
+import DashboardTab from './components/tabs/Dashboard.jsx';
+import LeaderboardTab from './components/tabs/Leaderboard.jsx';
+import MatchHistoryTab from './components/tabs/MatchHistory.jsx';
+import NewGameFormTab from './components/tabs/NewGameForm.jsx';
+import SettingsTab from './components/tabs/Settings.jsx';
+
+const App = () => {
+    // ===========================
+    // A. 状态管理 (State)
+    // ===========================
+
+    // 全局 UI 状态
+    const [activeTab, setActiveTab] = useState('dashboard');
+    const [loading, setLoading] = useState(true);
+    const [showNetworkAlert, setShowNetworkAlert] = useState(false);
+    const [theme, setTheme] = useState(() => {
+        if (typeof window !== 'undefined') { return localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+        return 'dark';
+    });
+
+    // 核心数据状态
+    const [matchHistory, setMatchHistory] = useState([]);
+    const [playerProfiles, setPlayerProfiles] = useState({});
+    
+    // 用户权限状态
+    const [user, setUser] = useState(null);
+    const [isAdmin, setIsAdmin] = useState(false);
+
+    // 筛选与排序状态 (驱动数据计算)
+    const [selectedSeason, setSelectedSeason] = useState('all');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'powerScore', direction: 'desc' });
+    
+    // 多选模式状态 (排行榜用)
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedPlayerNames, setSelectedPlayerNames] = useState(new Set());
+    const [showSelectedOnly, setShowSelectedOnly] = useState(false);
+
+    // 弹窗交互状态
+    const [selectedPlayer, setSelectedPlayer] = useState(null); // 个人详情弹窗
+    const [settlementModalData, setSettlementModalData] = useState(null); // 结算弹窗
+    const [editingMatchId, setEditingMatchId] = useState(null); // 正在编辑的比赛ID
+    
+    // 安全验证弹窗状态 (用于敏感操作)
+    const [isSecModalOpen, setIsSecModalOpen] = useState(false);
+    const [pendingAction, setPendingAction] = useState(null);
+
+    // ===========================
+    // B. 副作用 (Effects)
+    // ===========================
+
+    // 1. Firebase 监听数据变化
+    useEffect(() => {
+        // 监听登录状态
+        const unsubAuth = onAuthStateChanged(auth, (u) => {
+            setUser(u);
+            setIsAdmin(!!u);
+        });
+
+        // 监听比赛记录
+        const q = query(collection(db, "matches"));
+        const unsubMatches = onSnapshot(q, (snapshot) => {
+            const matches = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+            matches.sort((a, b) => new Date(b.date) - new Date(a.date));
+            setMatchHistory(matches);
+            setLoading(false);
+        }, (err) => console.error("Sync Error:", err));
+
+        // 监听玩家资料
+        const unsubProfiles = onSnapshot(collection(db, "profiles"), (snapshot) => {
+            const profiles = {};
+            snapshot.docs.forEach(doc => {
+                const rawData = doc.data();
+                // 兼容旧数据格式
+                if (rawData.data && typeof rawData.data === 'string') {
+                    profiles[doc.id] = { avatar: rawData.data, realName: rawData.realName || '' };
+                } else if (rawData.avatar) {
+                    profiles[doc.id] = rawData;
+                } else {
+                    profiles[doc.id] = { avatar: rawData.data || null, realName: rawData.realName || '' };
+                }
+            });
+            setPlayerProfiles(profiles);
+        });
+
+        return () => { unsubAuth(); unsubMatches(); unsubProfiles(); };
+    }, []);
+
+    // 2. 网络超时检测
+    useEffect(() => {
+        if (!loading) return;
+        const timer = setTimeout(() => {
+            if (loading) setShowNetworkAlert(true);
+        }, 5000);
+        return () => clearTimeout(timer);
+    }, [loading]);
+
+    // 3. 自动切换暗黑模式
+    useEffect(() => {
+        const root = window.document.documentElement;
+        if (theme === 'dark') { root.classList.add('dark'); } else { root.classList.remove('dark'); }
+        localStorage.setItem('theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+
+    // ===========================
+    // C. 核心数据计算 (Memo)
+    // ===========================
+    
+    // 1. 提取所有玩家名单
+    const allPlayerNames = useMemo(() => {
+        const names = new Set();
+        matchHistory.forEach(m => m.results.forEach(r => names.add(r.name)));
+        Object.keys(playerProfiles).forEach(n => names.add(n));
+        return Array.from(names).sort();
+    }, [matchHistory, playerProfiles]);
+
+    // 2. 排序后的历史记录
+    const sortedHistory = useMemo(() => {
+        return [...matchHistory].sort((a, b) => {
+            const dateA = new Date(a.date); const dateB = new Date(b.date);
+            if (dateA < dateB) return 1; if (dateA > dateB) return -1;
+            return String(b.id).localeCompare(String(a.id));
+        });
+    }, [matchHistory]);
+
+    // 3. 计算赛季归属
+    const matchSeasons = useMemo(() => {
+        const map = {};
+        const ascHistory = [...matchHistory].sort((a, b) => new Date(a.date) - new Date(b.date));
+        ascHistory.forEach((match, index) => {
+            const seasonNum = Math.ceil((index + 1) / GAMES_PER_SEASON);
+            map[match.id] = `S${seasonNum}`;
+        });
+        return map;
+    }, [matchHistory]);
+
+    const availableSeasons = useMemo(() => {
+        const seasons = new Set();
+        Object.values(matchSeasons).forEach(s => seasons.add(s));
+        return Array.from(seasons).sort((a, b) => parseInt(b.slice(1)) - parseInt(a.slice(1)));
+    }, [matchSeasons]);
+
+    // 4. 计算 Dashboard 用到的联盟极值 (Max/Min)
+    const leagueStats = useMemo(() => {
+        let maxAvgScore = 0; let maxGoldContent = 0; let maxAvgChips = 0;
+        let minAvgChips = Infinity; let maxAvgBeatRate = 0;
+        const tempStats = {};
+        
+        matchHistory.forEach(match => {
+            match.results.forEach(res => {
+                if (!tempStats[res.name]) tempStats[res.name] = { score: 0, chips: 0, games: 0, sumBeatRate: 0 };
+                tempStats[res.name].score += res.score;
+                tempStats[res.name].chips += (parseFloat(res.chips) || 0);
+                tempStats[res.name].games += 1;
+                const beatRate = match.totalPlayers > 1 ? (match.totalPlayers - res.rank) / (match.totalPlayers - 1) : 0;
+                tempStats[res.name].sumBeatRate += beatRate;
+            });
+        });
+
+        Object.values(tempStats).forEach(p => {
+            if (p.games < 1) return;
+            const avgScore = p.score / p.games;
+            const goldContent = p.score > 0 ? p.chips / p.score : 0;
+            const avgChips = p.chips / p.games;
+            const avgBeatRate = p.sumBeatRate / p.games;
+            if (avgScore > maxAvgScore) maxAvgScore = avgScore;
+            if (avgScore > 3 && goldContent > maxGoldContent) maxGoldContent = goldContent;
+            if (avgChips > maxAvgChips) maxAvgChips = avgChips;
+            if (avgChips < minAvgChips) minAvgChips = avgChips;
+            if (avgBeatRate > maxAvgBeatRate) maxAvgBeatRate = avgBeatRate;
+        });
+        if (minAvgChips === Infinity) minAvgChips = 0;
+        return { maxAvgScore, maxGoldContent, maxAvgChips, minAvgChips, maxAvgBeatRate };
+    }, [matchHistory]);
+
+    // 5. 计算排行榜核心数据 (StatsData)
+    const statsData = useMemo(() => {
+        const stats = {};
+        let maxG = 0; let seasonTotalChips = 0;
+        
+        const filteredMatches = selectedSeason === 'all' 
+            ? matchHistory 
+            : matchHistory.filter(m => matchSeasons[m.id] === selectedSeason);
+
+        const currentK = Math.max(2, filteredMatches.length / 4);
+        
+        filteredMatches.forEach(match => {
+            if (match.votedMvp) {
+                if (!stats[match.votedMvp]) stats[match.votedMvp] = { name: match.votedMvp, totalScore: 0, totalChips: 0, gamesPlayed: 0, wins: 0, votedMvpCount: 0, luckyCount: 0, sumPercentile: 0, recentScores: [], singleMax: -Infinity };
+                stats[match.votedMvp].votedMvpCount++;
+            }
+            if (match.luckyPlayer) {
+                if (!stats[match.luckyPlayer]) stats[match.luckyPlayer] = { name: match.luckyPlayer, totalScore: 0, totalChips: 0, gamesPlayed: 0, wins: 0, votedMvpCount: 0, luckyCount: 0, sumPercentile: 0, recentScores: [], singleMax: -Infinity };
+                stats[match.luckyPlayer].luckyCount++;
+            }
+            match.results.forEach(res => {
+                if (!stats[res.name]) stats[res.name] = { name: res.name, totalScore: 0, totalChips: 0, gamesPlayed: 0, wins: 0, votedMvpCount: 0, luckyCount: 0, sumPercentile: 0, recentScores: [], singleMax: -Infinity };
+                stats[res.name].totalScore += res.score;
+                stats[res.name].totalChips += (parseFloat(res.chips) || 0);
+                stats[res.name].gamesPlayed += 1;
+                stats[res.name].recentScores.push({ date: match.date, score: res.score }); 
+                if (res.score > stats[res.name].singleMax) stats[res.name].singleMax = res.score;
+                if (res.rank === 1) stats[res.name].wins += 1;
+                if (res.chips > 0) seasonTotalChips += res.chips;
+                const denominator = Math.max(1, match.totalPlayers - 1);
+                const percentile = (match.totalPlayers - res.rank) / denominator;
+                stats[res.name].sumPercentile += percentile;
+            });
+        });
+
+        Object.values(stats).forEach(p => {
+            if (p.gamesPlayed > maxG) maxG = p.gamesPlayed;
+            const avg = p.gamesPlayed > 0 ? p.totalScore / p.gamesPlayed : 0;
+            const avgChips = p.gamesPlayed > 0 ? p.totalChips / p.gamesPlayed : 0;
+            const gc = p.totalScore > 0 ? p.totalChips / p.totalScore : 0;
+            const avgPercentile = p.gamesPlayed > 0 ? p.sumPercentile / p.gamesPlayed : 0; 
+            const adjWinRateForScore = p.wins / (p.gamesPlayed + currentK);
+            
+            const power = (p.totalScore * 0.3) + (avg * 10) + (adjWinRateForScore * 50) + (p.votedMvpCount * 10) + (avgPercentile * 20);
+            
+            p.avgScoreNum = avg; p.avgScore = avg.toFixed(2); p.totalScore = parseFloat(p.totalScore.toFixed(2));
+            p.goldContentVal = gc; p.goldContent = gc.toFixed(1); p.avgChips = avgChips; p.powerScore = power;
+            p.avgPercentile = avgPercentile; p.avatar = playerProfiles[p.name]?.avatar;
+            p.recentTrend = p.recentScores.sort((a,b) => new Date(a.date) - new Date(b.date)).slice(-5).map(i => i.score);
+        });
+
+        let data = Object.values(stats);
+        const seasonStats = { totalGames: filteredMatches.length, totalPot: seasonTotalChips, activePlayers: data.length };
+        const topPower = [...data].sort((a,b) => b.powerScore - a.powerScore)[0];
+        const topAvgScore = [...data].filter(p => p.gamesPlayed > 0).sort((a,b) => b.avgScoreNum - a.avgScoreNum).slice(0, 3);
+        let highestSingle = { name: '-', score: 0 };
+        data.forEach(p => { if(p.singleMax > highestSingle.score) highestSingle = { name: p.name, score: p.singleMax }; });
+
+        const sortedSeasonMatches = [...filteredMatches].sort((a, b) => {
+            const dateA = new Date(a.date); const dateB = new Date(b.date);
+            if (dateA > dateB) return -1; if (dateA < dateB) return 1; return b.id - a.id; 
+        });
+        const latestMatch = sortedSeasonMatches.length > 0 ? sortedSeasonMatches[0] : null;
+
+        if (searchTerm) { 
+            const lowerTerm = searchTerm.toLowerCase(); 
+            data = data.filter(p => p.name.toLowerCase().includes(lowerTerm) || p.powerScore.toString().includes(lowerTerm)); 
+        }
+        if (showSelectedOnly && selectedPlayerNames.size > 0) { 
+            data = data.filter(p => selectedPlayerNames.has(p.name)); 
+        }
+        
+        data.sort((a, b) => {
+            let valA, valB;
+            switch(sortConfig.key) {
+                case 'powerScore': valA = a.powerScore; valB = b.powerScore; break;
+                case 'avgScore': valA = a.avgScoreNum; valB = b.avgScoreNum; break;
+                case 'avgChips': valA = a.avgChips; valB = b.avgChips; break;
+                case 'totalScore': valA = a.totalScore; valB = b.totalScore; break;
+                case 'totalChips': valA = a.totalChips; valB = b.totalChips; break;
+                case 'wins': valA = a.wins; valB = b.wins; break;
+                case 'goldContent': valA = a.goldContentVal; valB = b.goldContentVal; break;
+                case 'votedMvpCount': valA = a.votedMvpCount; valB = b.votedMvpCount; break;
+                case 'luckyCount': valA = a.luckyCount; valB = b.luckyCount; break;
+                default: valA = a.totalScore; valB = b.totalScore;
+            }
+            return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
+        });
+
+        return { leaderboardData: data, maxGames: maxG, seasonStats, topPower, topAvgScore, highestSingle, latestMatch }; 
+    }, [matchHistory, sortConfig, playerProfiles, searchTerm, showSelectedOnly, selectedPlayerNames, selectedSeason, matchSeasons]); 
+
+    // ===========================
+    // D. 事件处理 (Handlers)
+    // ===========================
+
+    // 保存比赛 (由 NewGameForm 触发)
+    const handleSaveGame = async (matchData) => {
+        try {
+            if (editingMatchId) {
+                await updateDoc(doc(db, "matches", editingMatchId), matchData);
+            } else {
+                await addDoc(collection(db, "matches"), matchData);
+            }
+            setEditingMatchId(null);
+            setActiveTab('leaderboard'); 
+        } catch (e) {
+            alert("保存失败: " + e.message);
+            console.error(e);
+        }
+    };
+
+    // 删除比赛 (由 History 触发)
+    const handleDeleteMatch = async (id) => {
+        if(confirm("确认删除这场比赛记录吗?")) {
+            await deleteDoc(doc(db, "matches", id));
+        }
+    };
+
+    // 开始编辑 (由 History 触发)
+    const handleStartEdit = (match) => {
+        setEditingMatchId(match.id);
+        setActiveTab('newGame');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // 排序
+    const handleSort = (key) => {
+        setSortConfig(prev => ({ 
+            key, 
+            direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc' 
+        }));
+    };
+
+    // 多选
+    const togglePlayerSelection = (n) => { 
+        const s = new Set(selectedPlayerNames); 
+        if(s.has(n)) s.delete(n); else s.add(n); 
+        setSelectedPlayerNames(s); 
+    };
+
+    // 头像上传
+    const handleUploadAvatar = async (name, base64) => {
+        if(!user) return alert("需要管理员权限");
+        try {
+            await setDoc(doc(db, "profiles", name), { avatar: base64 }, { merge: true });
+        } catch(e) { console.error(e); alert("上传失败"); }
+    };
+
+    // 个人详情页点击 "查看该场比赛"
+    const handleNavigateToMatch = (matchId) => {
+        setSelectedPlayer(null);
+        setActiveTab('history');
+        // 简单处理：跳到历史页，高亮该比赛
+        setEditingMatchId(matchId); // 这里借用 editingMatchId 来做高亮，或者你可以单独搞一个 highlightId
+        setTimeout(() => {
+            const el = document.getElementById(`match-${matchId}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+    };
+
+    // 安全弹窗触发器 (Settings 触发)
+    const handleTriggerSecurity = (action) => {
+        setPendingAction(action);
+        setIsSecModalOpen(true);
+    };
+
+    const confirmSecurity = async (password) => {
+        if (!password) return alert("请输入密码");
+        try {
+            await signInWithEmailAndPassword(auth, user.email, password);
+            setIsSecModalOpen(false);
+            
+            // 这里我们做一个特殊的处理：
+            // 因为 Settings 组件里的逻辑比较复杂（涉及到 FileReader），
+            // 建议把具体的“执行逻辑”还是放在 Settings 里，或者这里简单回调。
+            // 为了简化，这里我们只是模拟验证成功，真正的逻辑可以在 Settings 里监听 isSecModalOpen 关闭且 user 已登录来执行
+            // 但更好的做法是：把 performClear 等逻辑提到 App，或者 Settings 内部处理验证。
+            // 鉴于你之前代码的逻辑，我们这里简单处理：
+            alert("验证成功！请再次点击按钮执行操作 (鉴权已通过)");
+            // 注意：完美的解法是把 import/clear 逻辑移到 App.jsx，但为了不改动太大，暂且保持这样。
+            
+        } catch (e) { alert("密码错误，验证失败"); }
+    };
+
+    // ===========================
+    // E. 渲染 (Render)
+    // ===========================
+
+    if (loading && !showNetworkAlert) {
+        return <div className="loading-overlay"><div className="spinner"></div><div>正在同步云端数据...</div></div>;
+    }
+
+    return (
+        <div className="min-h-screen pb-20 transition-colors duration-300">
+            {/* 顶部导航 */}
+            <nav className="glass-header sticky top-0 z-50 transition-all duration-300">
+                <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+                            <Icon name="spade" className="w-5 h-5 fill-current" />
+                        </div>
+                        <span className="text-xl font-black tracking-tight hidden sm:block">145 <span className="text-emerald-500">联赛</span></span>
+                    </div>
+                    
+                    {/* 桌面端 Tab */}
+                    <div className="hidden md:flex items-center bg-slate-100/50 dark:bg-slate-800/50 rounded-full p-1 border border-slate-200 dark:border-slate-700/50 backdrop-blur-sm mx-4">
+                        {[
+                            { id: 'dashboard', l: '总览', i: 'layout-dashboard' }, 
+                            { id: 'leaderboard', l: '排行', i: 'trophy' }, 
+                            { id: 'history', l: '历史', i: 'history' }, 
+                            { id: 'newGame', l: '录入', i: 'plus-circle' }, 
+                            { id: 'settings', l: '设置', i: 'settings' }
+                        ].map(t => (
+                            <button key={t.id} onClick={() => setActiveTab(t.id)} className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${activeTab === t.id ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>
+                                <Icon name={t.i} className="w-3.5 h-3.5" /> {t.l}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <div className="hidden lg:block text-right"><Clock /></div>
+                        <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden lg:block"></div>
+                        <button onClick={toggleTheme} className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                            {theme === 'light' ? <Icon name="sun" className="w-5 h-5" /> : <Icon name="moon" className="w-5 h-5" />}
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            {/* 网络错误提示 */}
+            {showNetworkAlert && loading && (
+                <div className="bg-amber-500/10 border-l-4 border-amber-500 text-amber-700 dark:text-amber-400 p-4 mx-4 mt-4 rounded shadow-md flex justify-between items-start animate-slide-up">
+                    <div className="flex gap-3">
+                        <Icon name="wifi-off" className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-bold text-sm">数据同步超时</p>
+                            <p className="text-xs opacity-90 mt-1">请检查网络环境，或刷新重试。</p>
+                        </div>
+                    </div>
+                    <button onClick={() => window.location.reload()} className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded hover:bg-amber-600">刷新</button>
+                </div>
+            )}
+
+            {/* 主内容区域 */}
+            <main className="max-w-7xl mx-auto mt-8 px-4 space-y-8 animate-slide-up">
+                
+                {activeTab === 'dashboard' && (
+                    <DashboardTab 
+                        statsData={statsData}
+                        selectedSeason={selectedSeason}
+                        availableSeasons={availableSeasons}
+                        onSeasonChange={setSelectedSeason}
+                        onPlayerClick={setSelectedPlayer}
+                        onNavigateToHistory={() => setActiveTab('history')}
+                        GAMES_PER_SEASON={GAMES_PER_SEASON}
+                    />
+                )}
+
+                {activeTab === 'leaderboard' && (
+                    <LeaderboardTab 
+                        data={statsData.leaderboardData}
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        onPlayerClick={setSelectedPlayer}
+                        isSelectionMode={isSelectionMode}
+                        toggleSelectionMode={() => setIsSelectionMode(!isSelectionMode)}
+                        selectedPlayerNames={selectedPlayerNames}
+                        togglePlayerSelection={togglePlayerSelection}
+                        showSelectedOnly={showSelectedOnly}
+                        setShowSelectedOnly={setShowSelectedOnly}
+                        onClearSelection={() => setSelectedPlayerNames(new Set())}
+                        searchTerm={searchTerm}
+                        onSearchChange={setSearchTerm}
+                        selectedSeason={selectedSeason}
+                        onSeasonChange={setSelectedSeason}
+                        availableSeasons={availableSeasons}
+                        GAMES_PER_SEASON={GAMES_PER_SEASON}
+                    />
+                )}
+
+                {activeTab === 'history' && (
+                    <MatchHistoryTab 
+                        matches={sortedHistory}
+                        matchSeasons={matchSeasons}
+                        isAdmin={isAdmin}
+                        highlightMatchId={editingMatchId}
+                        onEdit={handleStartEdit}
+                        onDelete={handleDeleteMatch}
+                        onSettle={setSettlementModalData}
+                    />
+                )}
+
+                {activeTab === 'newGame' && (
+                    <NewGameFormTab 
+                        isAdmin={isAdmin}
+                        allPlayerNames={allPlayerNames}
+                        editingMatch={matchHistory.find(m => m.id === editingMatchId)}
+                        onSave={handleSaveGame}
+                        onCancelEdit={() => setEditingMatchId(null)}
+                    />
+                )}
+
+                {activeTab === 'settings' && (
+                    <SettingsTab 
+                        user={user}
+                        isAdmin={isAdmin}
+                        allPlayerNames={allPlayerNames}
+                        playerProfiles={playerProfiles}
+                        matchHistory={matchHistory}
+                        auth={auth}
+                        db={db}
+                        onTriggerSecurity={handleTriggerSecurity}
+                    />
+                )}
+
+            </main>
+
+            {/* 全局弹窗层 */}
+            {selectedPlayer && (
+                <PlayerProfileModal 
+                    player={selectedPlayer}
+                    history={matchHistory}
+                    onClose={() => setSelectedPlayer(null)}
+                    onUploadAvatar={handleUploadAvatar}
+                    isDark={theme === 'dark'}
+                    leagueStats={leagueStats}
+                    onNavigateToMatch={handleNavigateToMatch}
+                    allPlayerNames={allPlayerNames}
+                    playerProfiles={playerProfiles}
+                    leaderboardData={statsData.leaderboardData}
+                />
+            )}
+
+            {settlementModalData && (
+                <SettlementModal 
+                    data={settlementModalData}
+                    profiles={playerProfiles}
+                    onClose={() => setSettlementModalData(null)}
+                />
+            )}
+
+            <SecurityModal 
+                isOpen={isSecModalOpen}
+                onClose={() => setIsSecModalOpen(false)}
+                onConfirm={confirmSecurity}
+                title={pendingAction?.type === 'clear' ? '确认清空数据' : '确认导入数据'}
+                message={pendingAction?.type === 'clear' ? '您正在尝试删除云端的所有数据。此操作不可逆！' : '导入本地数据将会合并或覆盖现有的云端数据。'} 
+            />
+
+            {/* 移动端底部 Tab */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-[#0b0e14]/90 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 p-2 z-50 flex justify-around safe-area-bottom">
+                {[
+                    { id: 'dashboard', i: 'layout-dashboard' }, 
+                    { id: 'leaderboard', i: 'trophy' }, 
+                    { id: 'history', i: 'history' }, 
+                    { id: 'newGame', i: 'plus-circle' }, 
+                    { id: 'settings', i: 'settings' }
+                ].map(t => (
+                    <button key={t.id} onClick={() => setActiveTab(t.id)} className={`p-3 rounded-xl flex flex-col items-center gap-1 ${activeTab === t.id ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/10' : 'text-slate-400 dark:text-slate-500'}`}>
+                        <Icon name={t.i} className="w-6 h-6" />
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+export default App;
+
+================================================
+FILE PATH: src\charts\CareerChart.jsx
+================================================
+import React, { useEffect, useRef } from 'react';
+import Chart from 'chart.js/auto';
+
+const CareerChart = ({ history, isDark }) => {
+    const canvasRef = useRef(null);
+    const chartInstance = useRef(null);
+
+    useEffect(() => {
+        if (!canvasRef.current) return;
+        
+        if (chartInstance.current) {
+            chartInstance.current.destroy();
+        }
+
+        const ctx = canvasRef.current.getContext('2d');
+        
+        // 计算累计积分
+        let cumulativeScore = 0;
+        const dataPoints = history.map(h => { 
+            cumulativeScore += h.score; 
+            return cumulativeScore; 
+        });
+
+        const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+        const textColor = isDark ? '#64748b' : '#94a3b8';
+
+        chartInstance.current = new Chart(ctx, {
+            type: 'line',
+            data: { 
+                labels: history.map((_, i) => `R${i+1}`), 
+                datasets: [{ 
+                    label: '总积分累计', 
+                    data: dataPoints, 
+                    borderColor: '#3b82f6', 
+                    // 渐变填充效果
+                    backgroundColor: (context) => { 
+                        const ctx = context.chart.ctx; 
+                        const gradient = ctx.createLinearGradient(0, 0, 0, 200); 
+                        gradient.addColorStop(0, 'rgba(59, 130, 246, 0.4)'); 
+                        gradient.addColorStop(1, 'rgba(59, 130, 246, 0)'); 
+                        return gradient; 
+                    }, 
+                    fill: true, 
+                    tension: 0.4, 
+                    borderWidth: 2, 
+                    pointRadius: 0 
+                }] 
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { legend: { display: false } }, 
+                scales: { 
+                    x: { 
+                        grid: { display: false }, 
+                        ticks: { color: textColor, maxTicksLimit: 6 } 
+                    }, 
+                    y: { 
+                        grid: { color: gridColor }, 
+                        ticks: { color: textColor } 
+                    } 
+                } 
+            }
+        });
+
+        return () => {
+            if (chartInstance.current) {
+                chartInstance.current.destroy();
+            }
+        };
+    }, [history, isDark]);
+
+    return <div className="h-48 w-full"><canvas ref={canvasRef} /></div>;
+};
+
+export default CareerChart;
+
+================================================
+FILE PATH: src\charts\ProRadarChart.jsx
+================================================
+import React, { useEffect, useRef } from 'react';
+import Chart from 'chart.js/auto'; // 引入我们刚安装的库
+
+const ProRadarChart = ({ stats, compareStats, compareName, isDark }) => {
+    const canvasRef = useRef(null);
+    const chartInstance = useRef(null); // 用来存图表实例，不污染全局
+
+    useEffect(() => {
+        if (!canvasRef.current) return;
+        
+        // 1. 销毁旧图表 (防止重影)
+        if (chartInstance.current) {
+            chartInstance.current.destroy();
+        }
+
+        const ctx = canvasRef.current.getContext('2d');
+        
+        // 样式配置
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+        const textColor = isDark ? '#94a3b8' : '#64748b';
+        
+        // 数据集 1: 当前选手
+        const datasets = [{
+            label: '当前选手',
+            data: stats.map(s => s.value),
+            backgroundColor: 'rgba(16, 185, 129, 0.2)', // Emerald
+            borderColor: '#10b981',
+            pointBackgroundColor: '#10b981',
+            borderWidth: 2,
+            pointRadius: 2
+        }];
+
+        // 数据集 2: 对比选手 (如果有)
+        if (compareStats && compareStats.length > 0) {
+            datasets.push({
+                label: compareName || '对比选手',
+                data: compareStats.map(s => s.value),
+                backgroundColor: 'rgba(244, 63, 94, 0.2)', // Rose
+                borderColor: '#f43f5e',
+                pointBackgroundColor: '#f43f5e',
+                borderWidth: 2,
+                pointRadius: 2
+            });
+        }
+
+        // 2. 创建新图表
+        chartInstance.current = new Chart(ctx, {
+            type: 'radar',
+            data: { 
+                labels: stats.map(s => s.label), 
+                datasets: datasets 
+            },
+            options: { 
+                layout: { padding: 20 },
+                scales: { 
+                    r: { 
+                        angleLines: { color: gridColor }, 
+                        grid: { color: gridColor }, 
+                        pointLabels: { 
+                            color: textColor, 
+                            font: { size: 11, family: 'Inter', weight: 'bold' } 
+                        }, 
+                        suggestedMin: 0,
+                        suggestedMax: 10,
+                        min: 0,
+                        max: 10,
+                        ticks: { 
+                            stepSize: 2,
+                            display: false, 
+                            backdropColor: 'transparent'
+                        } 
+                    } 
+                }, 
+                plugins: { legend: { display: !!compareStats } },
+                maintainAspectRatio: false 
+            }
+        });
+
+        // 组件卸载时清理
+        return () => {
+            if (chartInstance.current) {
+                chartInstance.current.destroy();
+            }
+        };
+    }, [stats, compareStats, compareName, isDark]);
+
+    return <div className="h-64 w-full"><canvas ref={canvasRef} /></div>;
+};
+
+export default ProRadarChart;
+
+================================================
+FILE PATH: src\charts\Sparkline.jsx
+================================================
+import React from 'react';
+
+const Sparkline = ({ data, color, height = 24, width = 60 }) => {
+    if (!data || data.length < 2) {
+        return <div style={{width, height}} className="opacity-20 flex items-center justify-center text-[10px]">-</div>;
+    }
+
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || 1;
+    const step = width / (data.length - 1);
+    
+    // 如果没有传颜色，默认为灰色
+    const strokeColor = color || '#94a3b8';
+    
+    // 计算 SVG 的折线点
+    const points = data.map((d, i) => 
+        `${i * step},${height - ((d - min) / range) * height}`
+    ).join(' ');
+
+    return (
+        <svg width={width} height={height} className="overflow-visible">
+            <polyline 
+                points={points} 
+                fill="none" 
+                stroke={strokeColor} 
+                strokeWidth="1.5" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+            />
+            {/* 最后一个点画一个小圆圈 */}
+            <circle 
+                cx={(data.length-1)*step} 
+                cy={height - ((data[data.length-1] - min) / range) * height} 
+                r="2" 
+                fill={strokeColor} 
+            />
+        </svg>
+    );
+};
+
+export default Sparkline;
+
+================================================
+FILE PATH: src\components\Avatar.jsx
+================================================
+import React from 'react';
+
+const Avatar = ({ name, src, size = "md", className = "", bordered = true }) => {
+    // 尺寸配置字典
+    const sizeClasses = { 
+        sm: "w-8 h-8 text-xs", 
+        md: "w-10 h-10 text-xs", 
+        lg: "w-16 h-16 text-lg", 
+        xl: "w-24 h-24 text-2xl", 
+        xxl: "w-32 h-32 text-4xl" 
+    };
+
+    const borderClass = bordered ? "border-2 border-slate-200 dark:border-slate-700" : "";
+    
+    return (
+        <div className={`${sizeClasses[size]} rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden bg-slate-100 dark:bg-slate-800 ${borderClass} ${className} relative shadow-sm`}>
+            {src ? (
+                <img src={src} alt={name} className="w-full h-full object-cover" />
+            ) : (
+                <span className="font-bold text-slate-400 select-none">
+                    {name ? name[0].toUpperCase() : '?'}
+                </span>
+            )}
+        </div>
+    );
+};
+
+export default Avatar;
+
+================================================
+FILE PATH: src\components\Clock.jsx
+================================================
+import React, { useState, useEffect } from 'react';
+
+const Clock = () => {
+    const [time, setTime] = useState(new Date());
+    
+    useEffect(() => { 
+        const timer = setInterval(() => setTime(new Date()), 1000); 
+        return () => clearInterval(timer); 
+    }, []);
+
+    return (
+        <div className="flex flex-col items-end leading-tight select-none">
+            <div className="text-xl font-bold font-clock tracking-widest text-slate-700 dark:text-slate-200">
+                {time.toLocaleTimeString('zh-CN', { hour12: false })}
+            </div>
+            <div className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wide">
+                {time.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', weekday: 'short' })}
+            </div>
+        </div>
+    );
+};
+
+export default Clock;
+
+================================================
+FILE PATH: src\components\HeadToHead.jsx
+================================================
+import React from 'react';
+import Icon from './Icon';
+
+const HeadToHead = ({ player, opponent, history }) => {
+    if (!opponent) return null;
+
+    // 筛选出两人共同参与的比赛
+    const matchups = history.filter(m => {
+        const p1 = m.results.find(r => r.name === player.name);
+        const p2 = m.results.find(r => r.name === opponent);
+        return p1 && p2;
+    }).map(m => {
+        const p1 = m.results.find(r => r.name === player.name);
+        const p2 = m.results.find(r => r.name === opponent);
+        return {
+            date: m.date,
+            p1Rank: p1.rank,
+            p2Rank: p2.rank,
+            p1Score: p1.score,
+            p2Score: p2.score,
+            winner: p1.rank < p2.rank ? player.name : opponent
+        };
+    }).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const total = matchups.length;
+    const p1Wins = matchups.filter(m => m.winner === player.name).length;
+    const p2Wins = total - p1Wins;
+    const winRate = total > 0 ? (p1Wins / total) * 100 : 0;
+
+    return (
+        <div className="mt-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700/50 animate-slide-up">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                    <Icon name="swords" className="w-4 h-4"/> 宿敌对抗 (Head-to-Head)
+                </h3>
+            </div>
+            
+            <div className="flex items-center justify-between gap-4 mb-4">
+                <div className="text-center w-1/3">
+                    <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{p1Wins}</div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">胜场</div>
+                </div>
+                <div className="text-center w-1/3">
+                    <div className="text-xs font-bold text-slate-400 mb-1">同台竞技 {total} 场</div>
+                    <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden flex">
+                        <div className="h-full bg-emerald-500" style={{ width: `${winRate}%` }}></div>
+                        <div className="h-full bg-red-500" style={{ width: `${100 - winRate}%` }}></div>
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1">{player.name} 胜率 {winRate.toFixed(0)}%</div>
+                </div>
+                <div className="text-center w-1/3">
+                    <div className="text-2xl font-black text-red-500 dark:text-red-400">{p2Wins}</div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">胜场</div>
+                </div>
+            </div>
+
+            <div className="space-y-2">
+                <div className="text-[10px] text-slate-400 font-bold uppercase mb-2">最近 5 场交锋</div>
+                {matchups.slice(0, 5).map((m, i) => (
+                    <div key={i} className="flex justify-between items-center text-xs p-2 rounded bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700">
+                        <div className="font-mono text-slate-400">{m.date}</div>
+                        <div className="flex items-center gap-2">
+                            <span className={m.p1Rank < m.p2Rank ? "font-bold text-emerald-600 dark:text-emerald-400" : "text-slate-500"}>#{m.p1Rank}</span>
+                            <span className="text-slate-300">vs</span>
+                            <span className={m.p2Rank < m.p1Rank ? "font-bold text-red-500 dark:text-red-400" : "text-slate-500"}>#{m.p2Rank}</span>
+                        </div>
+                    </div>
+                ))}
+                {matchups.length === 0 && <div className="text-center text-slate-400 text-xs py-2">暂无同台记录</div>}
+            </div>
+        </div>
+    );
+};
+
+export default HeadToHead;
+
+================================================
+FILE PATH: src\components\Icon.jsx
+================================================
+import React from 'react';
+import * as LucideIcons from 'lucide-react';
+
+const Icon = ({ name, className = "", onClick }) => {
+    //如果没有名字，或者名字不对，返回一个问号图标
+    if (!name) return <LucideIcons.HelpCircle className={className} />;
+
+    // 🌟 核心魔法：把 "layout-dashboard" 这种名字自动转成 "LayoutDashboard" 组件
+    const formatIconName = (str) => {
+        return str
+            .split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join('');
+    };
+
+    const iconName = formatIconName(name);
+    
+    // 从图标库里取出对应的组件
+    const LucideIcon = LucideIcons[iconName];
+
+    // 如果找不到对应的图标，就显示个“问号”兜底，防止报错
+    if (!LucideIcon) {
+        console.warn(`Icon "${name}" not found, did you spell it right?`);
+        return <LucideIcons.HelpCircle className={className} onClick={onClick} />;
+    }
+
+    return <LucideIcon className={className} onClick={onClick} />;
+};
+
+export default Icon;
+
+================================================
+FILE PATH: src\components\PlayerProfileModal.jsx
+================================================
+import React, { useState, useEffect, useMemo } from 'react';
+import Icon from './Icon';
+import Avatar from './Avatar';
+// 注意这里的路径：.. 代表回到上一级，进入 charts 文件夹
+import ProRadarChart from '../charts/ProRadarChart';
+import CareerChart from '../charts/CareerChart';
+import HeadToHead from './HeadToHead';
+import { BADGE_THRESHOLD, compressImage } from '../lib/utils';
+
+const PlayerProfileModal = ({ 
+    player, 
+    history, 
+    onClose, 
+    onUploadAvatar, 
+    leagueStats, 
+    isDark, 
+    onNavigateToMatch, 
+    allPlayerNames, 
+    leaderboardData 
+}) => {
+    const [compareTarget, setCompareTarget] = useState(''); 
+
+    if (!player) return null;
+
+    // --- 数据准备 ---
+    const playerMatches = history
+        .filter(m => m.results.some(r => r.name === player.name))
+        .map(m => { 
+            const res = m.results.find(r => r.name === player.name); 
+            return { ...m, result: res, dateObj: new Date(m.date) }; 
+        })
+        .sort((a, b) => a.dateObj - b.dateObj);
+        
+    const totalGames = playerMatches.length;
+    const wins = playerMatches.filter(m => m.result.rank === 1).length;
+    
+    // 锁定滚动条
+    useEffect(() => { 
+        document.body.classList.add('modal-open'); 
+        return () => document.body.classList.remove('modal-open'); 
+    }, []);
+
+    const handleFileChange = async (e) => { 
+        if (e.target.files && e.target.files[0]) { 
+            const base64 = await compressImage(e.target.files[0]); 
+            onUploadAvatar(player.name, base64); 
+        } 
+    };
+
+    const careerK = Math.max(2, history.length / 4);
+    const adjWinRate = wins / (totalGames + careerK); 
+
+    // 🔥 提取雷达计算核心逻辑
+    const calculateRadarForPlayer = (targetPlayerName, targetMatches, targetTotalGames, targetTotalChips) => {
+        if (targetTotalGames < 1) return [];
+
+        // 1. 稳定
+        const ranks = targetMatches.map(m => m.result.rank);
+        const avgRank = ranks.reduce((a,b)=>a+b,0) / ranks.length;
+        const variance = ranks.reduce((a,b)=>a+Math.pow(b-avgRank,2),0) / ranks.length;
+        const stdDev = Math.sqrt(variance);
+        let stabilityScore = Math.max(1, Math.min(10, 10 - stdDev)); 
+
+        // 2. 效率
+        const totalScore = targetMatches.reduce((a,b)=>a+b.result.score,0);
+        const avgScore = totalScore / targetTotalGames;
+        const goldContent = totalScore > 0 ? targetTotalChips / totalScore : 0;
+        const normAvgScore = leagueStats.maxAvgScore > 0 ? avgScore / leagueStats.maxAvgScore : 0;
+        const safeMaxGoldContent = leagueStats.maxGoldContent || 1;
+        const normGoldContent = safeMaxGoldContent > 0 ? goldContent / safeMaxGoldContent : 0;
+        let efficiencyScore = Math.max(1, Math.min(10, (normAvgScore * 0.6 + normGoldContent * 0.4) * 10));
+
+        // 3. 掠夺
+        const avgChips = targetTotalChips / targetTotalGames;
+        const range = leagueStats.maxAvgChips - leagueStats.minAvgChips;
+        const normChips = range > 0 ? (avgChips - leagueStats.minAvgChips) / range : 0.5;
+        let plunderScore = Math.max(1, Math.min(10, normChips * 9 + 1));
+
+        // 4. 击败
+        const beatRates = targetMatches.map(m => {
+            if (m.totalPlayers <= 1) return 0;
+            return (m.totalPlayers - m.result.rank) / (m.totalPlayers - 1);
+        });
+        const avgBeatRate = beatRates.reduce((a,b)=>a+b,0) / beatRates.length;
+        const normBeatRate = leagueStats.maxAvgBeatRate > 0 ? avgBeatRate / leagueStats.maxAvgBeatRate : 0;
+        let defeatScore = 0;
+        if (normBeatRate >= 0.9) defeatScore = 9 + (normBeatRate - 0.9) * 10;
+        else if (normBeatRate >= 0.7) defeatScore = 7 + (normBeatRate - 0.7) * 10;
+        else if (normBeatRate >= 0.4) defeatScore = 4 + (normBeatRate - 0.4) * 10;
+        else defeatScore = 1 + normBeatRate * 7.5;
+        defeatScore = Math.max(1, Math.min(10, defeatScore));
+
+        return [
+            { label: '稳定 (Stability)', value: stabilityScore, raw: `σ=${stdDev.toFixed(1)}` },
+            { label: '效率 (Efficiency)', value: efficiencyScore, raw: `Score:${avgScore.toFixed(1)}` },
+            { label: '掠夺 (Plunder)', value: plunderScore, raw: `Avg:${Math.round(avgChips)}` },
+            { label: '击败 (Defeat)', value: defeatScore, raw: `Rate:${(avgBeatRate*100).toFixed(0)}%` }
+        ];
+    };
+
+    // 计算当前玩家雷达
+    const radarStats = useMemo(() => {
+        return calculateRadarForPlayer(player.name, playerMatches, totalGames, player.totalChips);
+    }, [player, totalGames, playerMatches, leagueStats]);
+
+    // 计算对比玩家雷达
+    const compareRadarStats = useMemo(() => {
+        if (!compareTarget || !leaderboardData) return null;
+        const targetObj = leaderboardData.find(p => p.name === compareTarget);
+        if (!targetObj) return null;
+        
+        const targetMatches = history.filter(m => m.results.some(r => r.name === compareTarget)).map(m => { 
+            const res = m.results.find(r => r.name === compareTarget); 
+            return { ...m, result: res }; 
+        });
+        
+        return calculateRadarForPlayer(compareTarget, targetMatches, targetObj.gamesPlayed, targetObj.totalChips);
+    }, [compareTarget, history, leaderboardData, leagueStats]);
+
+    // 勋章逻辑
+    const badges = useMemo(() => {
+        const b = [];
+        const winRate = totalGames > 0 ? wins / totalGames : 0;
+        if (totalGames >= 5 && winRate >= 0.3) { b.push({ icon: 'crown', name: '统治者', color: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20', desc: '胜率超过 30% 的顶级鲨鱼' }); }
+        if (player.totalChips > 2000) { b.push({ icon: 'gem', name: '大富豪', color: 'text-purple-500 bg-purple-500/10 border-purple-500/20', desc: '累计盈利超过 2000 筹码' }); }
+        const charityCount = playerMatches.filter(m => m.result.chips <= -BADGE_THRESHOLD).length;
+        if (charityCount > 0) { b.push({ icon: 'heart-handshake', name: `慈善家${charityCount > 1 ? ' x' + charityCount : ''}`, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20', desc: `累计 ${charityCount} 次单场“贡献”超过 ${BADGE_THRESHOLD} 筹码` }); }
+        const nerveKnifeCount = playerMatches.filter(m => m.result.chips >= 2000).length;
+        if (nerveKnifeCount > 0) { b.push({ icon: 'zap', name: `神经刀${nerveKnifeCount > 1 ? ' x' + nerveKnifeCount : ''}`, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20', desc: `累计 ${nerveKnifeCount} 次单场狂揽 2000+ 筹码` }); }
+        const luckyCounts = {}; history.forEach(m => { if(m.luckyPlayer) { luckyCounts[m.luckyPlayer] = (luckyCounts[m.luckyPlayer] || 0) + 1; } });
+        const maxLucky = Math.max(0, ...Object.values(luckyCounts));
+        if (player.luckyCount > 0 && player.luckyCount >= maxLucky) { b.push({ icon: 'clover', name: '天选之子', color: 'text-pink-500 bg-pink-500/10 border-pink-500/20', desc: '获得运气王次数全联盟第一' }); }
+        if (totalGames >= 10) { b.push({ icon: 'shield', name: '老兵', color: 'text-blue-500 bg-blue-500/10 border-blue-500/20', desc: '参赛场次达到 10 场以上' }); }
+        const secondPlacesCount = playerMatches.filter(m => m.result.rank === 2).length;
+        if (secondPlacesCount >= 3) { b.push({ icon: 'divide', name: `意难平 x${secondPlacesCount}`, color: 'text-slate-500 bg-slate-500/10 border-slate-500/20', desc: `累计获得 ${secondPlacesCount} 次亚军` }); }
+        const comebackCount = playerMatches.filter(m => { if (!m.transactions) return false; const myBuyIn = m.transactions.filter(t => t.buyer === player.name).reduce((sum, t) => sum + parseFloat(t.amount), 0); return myBuyIn >= BADGE_THRESHOLD && m.result.chips > 0; }).length;
+        if (comebackCount > 0) { b.push({ icon: 'trending-up', name: `逆风翻盘${comebackCount > 1 ? ' x' + comebackCount : ''}`, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20', desc: `累计 ${comebackCount} 次单场买入超 ${BADGE_THRESHOLD} 仍不仅没输，反而盈利` }); }
+        return b;
+    }, [player, totalGames, wins, playerMatches, history, adjWinRate]);
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md animate-modal" onClick={onClose}>
+            <div className="glass-panel w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-2xl shadow-2xl relative bg-white/90 dark:bg-slate-900/90" onClick={e => e.stopPropagation()}>
+                <div className="h-32 bg-gradient-to-r from-emerald-600 to-teal-700 dark:from-emerald-900 dark:to-slate-900 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-30"></div>
+                    <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-black/20 text-white hover:bg-white/20 transition-colors z-10"><Icon name="x" className="w-5 h-5" /></button>
+                </div>
+                <div className="px-8 pb-8 -mt-16 relative">
+                    <div className="flex flex-col md:flex-row gap-6 items-start">
+                        <div className="relative group cursor-pointer">
+                            <Avatar name={player.name} src={player.avatar?.avatar || player.avatar} size="xxl" className="border-4 border-white dark:border-[#0b0e14] shadow-2xl" />
+                            <label className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-all backdrop-blur-sm"><Icon name="camera" className="text-white w-8 h-8" /><input type="file" accept="image/*" className="hidden" onChange={handleFileChange} /></label>
+                        </div>
+                        <div className="flex-1 pt-16 md:pt-0 md:mt-16">
+                            <div className="flex flex-wrap items-center gap-3 mb-1"><h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{player.name}</h2><span className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg shadow-indigo-500/20">OVR {Math.round(player.powerScore)}</span></div>
+                            
+                            {badges.length > 0 && (
+                                <div className="flex flex-wrap gap-2 my-3 animate-slide-up">
+                                    {badges.map((badge, idx) => (
+                                        <div key={idx} className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold border ${badge.color} cursor-help`} title={badge.desc}>
+                                            <Icon name={badge.icon} className="w-3 h-3" />
+                                            {badge.name}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="flex flex-wrap gap-2 text-sm text-slate-500 dark:text-slate-400">{player.votedMvpCount > 0 && <span className="flex items-center gap-1 text-indigo-600 dark:text-yellow-400"><Icon name="star" className="w-3 h-3 fill-current"/> {player.votedMvpCount} MVP</span>}{player.wins > 0 && <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><Icon name="trophy" className="w-3 h-3"/> {player.wins} 胜</span>}<span className="text-slate-300 dark:text-slate-600">|</span><span>{totalGames} 场比赛</span></div>
+                        </div>
+                        <div className="hidden md:flex gap-8 mt-20"><div className="text-center"><div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">实战胜率 (Raw)</div><div className="text-2xl font-mono font-bold text-slate-700 dark:text-white">{totalGames ? ((wins/totalGames)*100).toFixed(1) : 0}%</div></div><div className="text-center"><div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">统治力指数 (Adj.)</div><div className="text-2xl font-mono font-bold text-indigo-600 dark:text-indigo-400">{(adjWinRate * 100).toFixed(1)}%</div></div><div className="text-center"><div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">场均得分</div><div className="text-2xl font-mono font-bold text-emerald-600 dark:text-emerald-400">{player.avgScore}</div></div></div>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+                        <div className="lg:col-span-1 space-y-6">
+                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700/50 shadow-inner">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center flex-1">能力雷达 (v10.4 Pro)</h3>
+                                    <div className="relative">
+                                        <select 
+                                            value={compareTarget} 
+                                            onChange={e => setCompareTarget(e.target.value)} 
+                                            className="appearance-none bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs rounded px-2 py-1 pr-6 focus:outline-none focus:border-emerald-500"
+                                        >
+                                            <option value="">⚔️ VS 对比</option>
+                                            {allPlayerNames.filter(n => n !== player.name).map(n => (
+                                                <option key={n} value={n}>{n}</option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute inset-y-0 right-0 flex items-center px-1 pointer-events-none text-slate-400"><Icon name="chevron-down" className="w-3 h-3"/></div>
+                                    </div>
+                                </div>
+
+                                <ProRadarChart stats={radarStats} compareStats={compareRadarStats} compareName={compareTarget} isDark={isDark} />
+                                
+                                <div className="mt-5 space-y-3">
+                                    {radarStats.map((s, i) => {
+                                        const compareVal = compareRadarStats ? compareRadarStats[i].value : null;
+                                        const diff = compareVal !== null ? s.value - compareVal : 0;
+                                        
+                                        return (
+                                            <div key={i} className="flex flex-col gap-1">
+                                                <div className="flex justify-between items-end text-xs">
+                                                    <span className="font-bold text-slate-600 dark:text-slate-300">{s.label.split(' ')[0]}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        {compareVal !== null && (
+                                                            <span className={`text-[10px] font-mono ${diff > 0 ? 'text-emerald-500' : diff < 0 ? 'text-rose-500' : 'text-slate-400'}`}>
+                                                                {diff > 0 ? '+' : ''}{diff.toFixed(1)}
+                                                            </span>
+                                                        )}
+                                                        <span className="font-mono font-bold text-slate-800 dark:text-white">{s.value.toFixed(1)}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden relative">
+                                                    <div className="absolute h-full bg-emerald-500 rounded-full" style={{ width: `${s.value * 10}%`, zIndex: 10 }}></div>
+                                                    {compareVal !== null && (
+                                                        <div className="absolute h-full bg-rose-500/50 rounded-full" style={{ width: `${compareVal * 10}%`, zIndex: 20, mixBlendMode: 'multiply' }}></div>
+                                                    )}
+                                                </div>
+                                                <div className="text-[9px] text-slate-400 text-right scale-90 origin-right">{s.raw}</div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                            
+                            <HeadToHead player={player} opponent={compareTarget} history={history} />
+                        </div>
+
+                        <div className="lg:col-span-2 space-y-6">
+                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700/50 shadow-inner"><h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">赛季积分走势</h3><CareerChart history={playerMatches.map(m => ({ score: m.result.score }))} isDark={isDark} /></div>
+                            <div className="bg-white dark:bg-slate-800/50 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700/50 shadow-sm"><div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 flex justify-between items-center bg-slate-50/50 dark:bg-transparent"><h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">近期战绩 (点击查看详情)</h3><span className="text-xs text-slate-400">近 {playerMatches.length} 场</span></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 text-xs uppercase font-semibold"><tr><th className="px-4 py-2 text-left">日期</th><th className="px-4 py-2 text-center">排名</th><th className="px-4 py-2 text-right">筹码</th><th className="px-4 py-2 text-right">积分</th><th className="px-4 py-2 text-right">评分</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">{playerMatches.reverse().map(m => (<tr key={m.id} onClick={() => onNavigateToMatch(m.id)} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer"><td className="px-4 py-2 text-slate-600 dark:text-slate-300 font-mono text-xs">{m.date}</td><td className="px-4 py-2 text-center"><span className={`inline-block w-6 h-6 leading-6 rounded-full text-xs font-bold ${m.result.rank === 1 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400' : m.result.rank <= 3 ? 'bg-slate-200 text-slate-700 dark:bg-slate-600/50 dark:text-white' : 'text-slate-400'}`}>{m.result.rank}</span></td><td className={`px-4 py-2 text-right font-mono ${m.result.chips >= 0 ? 'text-red-500 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{m.result.chips > 0 ? '+' : ''}{m.result.chips}</td><td className="px-4 py-2 text-right font-bold text-slate-700 dark:text-white">+{m.result.score}</td><td className="px-4 py-2 text-right"><div className="w-16 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full ml-auto overflow-hidden"><div className="h-full bg-emerald-500" style={{ width: `${(m.result.score / 25) * 100}%` }}></div></div></td></tr>))}</tbody></table></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default PlayerProfileModal;
+
+================================================
+FILE PATH: src\components\SecurityModal.jsx
+================================================
+import React, { useState, useEffect } from 'react';
+import Icon from './Icon';
+
+const SecurityModal = ({ isOpen, onClose, onConfirm, title, message }) => {
+    const [password, setPassword] = useState('');
+    
+    useEffect(() => { 
+        if (isOpen) document.body.classList.add('modal-open'); 
+        else document.body.classList.remove('modal-open'); 
+        return () => document.body.classList.remove('modal-open'); 
+    }, [isOpen]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-modal" onClick={onClose}>
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700 p-6" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center gap-3 mb-4 text-red-500">
+                    <Icon name="shield-alert" className="w-8 h-8" />
+                    <h2 className="text-xl font-bold">{title}</h2>
+                </div>
+                <p className="text-slate-600 dark:text-slate-300 mb-6 text-sm">{message}</p>
+                
+                <div className="space-y-4">
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">确认管理员密码</label>
+                        <input 
+                            type="password" 
+                            autoFocus
+                            value={password} 
+                            onChange={e => setPassword(e.target.value)} 
+                            className="input-pro w-full p-3 rounded-lg" 
+                            placeholder="请输入登录密码..." 
+                        />
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                        <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">取消</button>
+                        <button 
+                            onClick={() => onConfirm(password)} 
+                            className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold transition-colors shadow-lg"
+                        >
+                            确认执行
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default SecurityModal;
+
+================================================
+FILE PATH: src\components\SettlementModal.jsx
+================================================
+import React from 'react';
+import Icon from './Icon';
+import Avatar from './Avatar';
+import { calculateSettlements, CHIP_EXCHANGE_RATE } from '../lib/utils'; // 注意路径 ../
+
+const SettlementModal = ({ data, profiles, onClose }) => {
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-modal" onClick={onClose}>
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="bg-emerald-600 p-4 text-white flex justify-between items-center">
+                    <h3 className="font-bold flex items-center gap-2"><Icon name="banknote" className="w-5 h-5"/> 智能结算方案</h3>
+                    <button onClick={onClose}><Icon name="x" className="w-5 h-5"/></button>
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">比赛日期</div>
+                    <div className="font-bold text-slate-800 dark:text-white">{data.date}</div>
+                </div>
+                <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3">
+                    {calculateSettlements(data.results).length === 0 ? (
+                        <div className="text-center text-slate-400 py-4">本局无需转账 (平局或数据为0)</div>
+                    ) : (
+                        calculateSettlements(data.results).map((t, idx) => (
+                            <div key={idx} className="flex items-center justify-between bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm relative overflow-hidden">
+                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500"></div>
+                                <div className="flex items-center gap-3 z-10">
+                                    <Avatar name={t.from} src={profiles[t.from]?.avatar} size="sm" bordered={false} />
+                                    <div className="text-sm">
+                                        <div className="font-bold text-slate-700 dark:text-slate-200">{t.from}</div>
+                                        {profiles[t.from]?.realName && <div className="text-[10px] text-slate-400">({profiles[t.from].realName})</div>}
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-center z-10 px-2">
+                                    <div className="text-[10px] text-slate-400 mb-1">支付给</div>
+                                    <Icon name="arrow-right" className="w-4 h-4 text-slate-300"/>
+                                </div>
+                                <div className="flex items-center gap-3 z-10 flex-row-reverse">
+                                    <Avatar name={t.to} src={profiles[t.to]?.avatar} size="sm" bordered={false} />
+                                    <div className="text-right text-sm">
+                                        <div className="font-bold text-slate-700 dark:text-slate-200">{t.to}</div>
+                                        {profiles[t.to]?.realName && <div className="text-[10px] text-slate-400">({profiles[t.to].realName})</div>}
+                                        <div className="text-emerald-600 dark:text-emerald-400 font-mono font-black mt-0.5">
+                                            ¥{(t.amount / CHIP_EXCHANGE_RATE).toFixed(2)}
+                                        </div>
+                                        <div className="text-[9px] text-slate-400">{t.amount} 筹码</div>
+                                    </div>
+                                    <div className="absolute right-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 text-center">
+                    <p className="text-[10px] text-slate-400">系统已自动计算最优转账路径，仅管理员可见</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default SettlementModal;
+
+================================================
+FILE PATH: src\components\tabs\Dashboard.jsx
+================================================
+import React from 'react';
+import Icon from '../Icon';
+import Avatar from '../Avatar';
+
+const Dashboard = ({ 
+    statsData, 
+    selectedSeason, 
+    availableSeasons, 
+    onSeasonChange, 
+    onPlayerClick, 
+    onNavigateToHistory,
+    GAMES_PER_SEASON 
+}) => {
+    return (
+        <>
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                    <Icon name="layout-dashboard" className="w-6 h-6 text-emerald-500"/> 概览
+                </h2>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-500 uppercase">赛季:</span>
+                    <select 
+                        value={selectedSeason} 
+                        onChange={e => onSeasonChange(e.target.value)} 
+                        className="input-pro py-1 px-3 rounded-lg text-sm bg-white dark:bg-slate-800 border-none font-mono"
+                    >
+                        <option value="all">🏆 全赛季 (All-Time)</option>
+                        {availableSeasons.map(s => {
+                            const sNum = s.slice(1);
+                            const start = (sNum - 1) * GAMES_PER_SEASON + 1;
+                            const end = sNum * GAMES_PER_SEASON;
+                            return <option key={s} value={s}>🏁 第 {sNum} 赛季 (G{start}-{end})</option>;
+                        })}
+                    </select>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+                {/* 榜首卡片 */}
+                <div 
+                    onClick={() => statsData.topPower && onPlayerClick(statsData.topPower)}
+                    className="lg:col-span-2 glass-panel rounded-2xl p-6 relative overflow-hidden group border border-slate-200 dark:border-slate-700 cursor-pointer hover:shadow-lg transition-all"
+                >
+                    <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-purple-500/10 dark:bg-purple-500/20 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-all"></div>
+                    <div className="relative z-10 flex items-center gap-6">
+                        <div className="relative">
+                            <Avatar name={statsData.topPower?.name} src={statsData.topPower?.avatar?.avatar || statsData.topPower?.avatar} size="xl" className="border-4 border-slate-100 dark:border-slate-800 shadow-xl" />
+                            <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded-full shadow-lg border border-yellow-200">NO.1</div>
+                        </div>
+                        <div>
+                            <div className="text-xs font-bold text-purple-500 uppercase tracking-widest mb-1">{selectedSeason === 'all' ? '总榜领跑者 (League Leader)' : `S${selectedSeason.slice(1)} 赛季领跑者`}</div>
+                            <div className="text-3xl font-black text-slate-800 dark:text-white mb-1">{statsData.topPower?.name || '暂无数据'}</div>
+                            <div className="flex gap-3 text-sm">
+                                <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">战力 {Math.round(statsData.topPower?.powerScore || 0)}</span>
+                                <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">胜率 {statsData.topPower?.gamesPlayed ? Math.round((statsData.topPower.wins/statsData.topPower.gamesPlayed)*100) : 0}%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 统计小卡片 */}
+                <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+                    {[
+                        { l: '本赛季场次', v: statsData.seasonStats.totalGames + (selectedSeason === 'all' ? '' : ` / ${GAMES_PER_SEASON}`), i: 'hash', c: 'text-blue-500' },
+                        { l: '赛季总奖池', v: statsData.seasonStats.totalPot.toLocaleString(), i: 'database', c: 'text-emerald-500' },
+                        { l: '活跃玩家', v: statsData.seasonStats.activePlayers, i: 'users', c: 'text-orange-500' },
+                        { l: '单场最高分', v: `${statsData.highestSingle.score > -Infinity ? statsData.highestSingle.score : '-'} (${statsData.highestSingle.name})`, i: 'zap', c: 'text-yellow-500' }
+                    ].map((item, idx) => (
+                        <div key={idx} className="glass-panel rounded-xl p-4 flex flex-col justify-center border border-slate-200 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                            <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1"><Icon name={item.i} className="w-3 h-3"/> {item.l}</div>
+                            <div className={`text-lg font-black ${item.c} font-mono truncate`}>{item.v}</div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* 效率之王 */}
+            <div className="mb-8">
+                <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Icon name="activity" className="w-4 h-4"/> 效率之王 (Efficiency Kings) - 场均前三
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {statsData.topAvgScore.map((p, idx) => (
+                        <div 
+                            key={p.name} 
+                            onClick={() => onPlayerClick(p)}
+                            className="glass-panel p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 flex items-center gap-4 relative overflow-hidden cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                        >
+                            <div className="absolute right-0 top-0 p-2 opacity-10 font-black text-4xl italic text-slate-500">#{idx+1}</div>
+                            <Avatar name={p.name} src={p.avatar?.avatar || p.avatar} size="md" className={`border-2 ${idx===0 ? 'border-yellow-500' : idx===1 ? 'border-slate-400' : 'border-orange-600'}`} />
+                            <div>
+                                <div className="font-bold text-slate-700 dark:text-slate-200">{p.name}</div>
+                                <div className="text-xs text-slate-400">场均 <span className="text-blue-500 font-bold font-mono text-sm">{p.avgScore}</span> 分</div>
+                            </div>
+                        </div>
+                    ))}
+                    {statsData.topAvgScore.length === 0 && <div className="col-span-3 text-center text-slate-400 text-sm py-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl">暂无数据</div>}
+                </div>
+            </div>
+
+            {/* 最新比赛 */}
+            {statsData.latestMatch && (
+                <div className="glass-panel rounded-2xl p-6 border-t-4 border-t-indigo-500 bg-white dark:bg-slate-800/60 mt-6 shadow-lg">
+                    <div className="flex justify-between items-end mb-6">
+                        <div>
+                            <div className="text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-2">
+                                {selectedSeason === 'all' ? '最新比赛' : `S${selectedSeason.slice(1)} 赛季收官战`}
+                            </div>
+                            <div className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-3">
+                                {statsData.latestMatch.date}
+                                <span className="text-sm font-normal text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">{statsData.latestMatch.totalPlayers} 人参赛</span>
+                            </div>
+                        </div>
+                        <button onClick={onNavigateToHistory} className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 font-bold uppercase flex items-center gap-1 transition-colors">
+                            全部记录 <Icon name="arrow-right" className="w-3 h-3"/>
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {statsData.latestMatch.results.slice(0, 5).map((r, i) => (
+                            <div key={i} className="bg-slate-50 dark:bg-slate-800/40 p-3 rounded-lg border border-slate-200 dark:border-slate-700/50 flex flex-col items-center text-center relative overflow-hidden group hover:shadow-md transition-all">
+                                {r.rank === 1 && <div className="absolute top-0 right-0 p-1"><Icon name="crown" className="w-3 h-3 text-yellow-500 fill-current"/></div>}
+                                <div className="text-xs text-slate-400 font-bold mb-1">#{r.rank}</div>
+                                <div className="font-bold text-slate-700 dark:text-white mb-1">{r.name}</div>
+                                <div className="text-emerald-600 dark:text-emerald-400 font-mono text-sm font-bold">+{r.score}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
+
+export default Dashboard;
+
+================================================
+FILE PATH: src\components\tabs\Leaderboard.jsx
+================================================
+import React from 'react';
+import Icon from '../Icon';
+import Avatar from '../Avatar';
+import Sparkline from '../../charts/Sparkline';
+
+const Leaderboard = ({ 
+    data, 
+    sortConfig, 
+    onSort, 
+    onPlayerClick, 
+    isSelectionMode, 
+    toggleSelectionMode,
+    selectedPlayerNames,
+    togglePlayerSelection,
+    showSelectedOnly,
+    setShowSelectedOnly,
+    onClearSelection,
+    searchTerm,
+    onSearchChange,
+    selectedSeason,
+    onSeasonChange,
+    availableSeasons,
+    GAMES_PER_SEASON
+}) => {
+    const isSorted = (k) => sortConfig.key === k;
+
+    return (
+        <div className="glass-panel rounded-2xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-700/50">
+            {/* 顶部工具栏 */}
+            <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+                    <div className="relative min-w-[180px]">
+                        <select 
+                            value={selectedSeason} 
+                            onChange={e => onSeasonChange(e.target.value)} 
+                            className="input-pro w-full pl-3 pr-8 py-2 rounded-lg text-sm bg-white dark:bg-slate-800/50 font-bold appearance-none cursor-pointer"
+                        >
+                            <option value="all">🏆 全赛季总榜</option>
+                            {availableSeasons.map(s => {
+                                const sNum = s.slice(1);
+                                const start = (sNum - 1) * GAMES_PER_SEASON + 1;
+                                const end = sNum * GAMES_PER_SEASON;
+                                return <option key={s} value={s}>🏁 第 {sNum} 赛季 (G{start}-{end})</option>;
+                            })}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500"><Icon name="chevron-down" className="w-4 h-4"/></div>
+                    </div>
+                    
+                    <div className="relative w-full sm:w-64 group">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="search" className="h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors"/></div>
+                        <input type="text" placeholder="搜索 玩家 / 数据..." value={searchTerm} onChange={(e) => onSearchChange(e.target.value)} className="input-pro w-full pl-10 pr-4 py-2 rounded-lg text-sm bg-white dark:bg-slate-800/50" />
+                    </div>
+                </div>
+                
+                {/* 排序按钮组 */}
+                <div className="flex gap-2 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
+                    {[{k:'powerScore',l:'战力',c:'purple'}, {k:'avgScore',l:'场均得分',c:'blue'}, {k:'avgChips',l:'场均筹码',c:'teal'}, {k:'totalScore',l:'总得分',c:'emerald'}, {k:'totalChips',l:'总筹码',c:'red'}, {k:'wins',l:'吃鸡数',c:'yellow'}, {k:'goldContent',l:'含金量',c:'orange'}, {k:'votedMvpCount',l:'MVP',c:'indigo'}, {k:'luckyCount',l:'运气王',c:'pink'}].map(item => (
+                        <button key={item.k} onClick={() => onSort(item.k)} className={`px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider border whitespace-nowrap transition-all ${isSorted(item.k) ? `bg-${item.c}-50 dark:bg-${item.c}-500/10 border-${item.c}-500 text-${item.c}-600 dark:text-${item.c}-400` : 'bg-white dark:bg-transparent border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-400 dark:hover:border-slate-500'}`}>
+                            {item.l} {isSorted(item.k) ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                        </button>
+                    ))}
+                    <button onClick={toggleSelectionMode} className={`p-1.5 rounded border bg-white dark:bg-transparent transition-colors ${isSelectionMode ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-slate-200 dark:border-slate-700 text-slate-400'}`}><Icon name="list-checks" className="w-5 h-5"/></button>
+                </div>
+            </div>
+
+            {/* 选择模式工具条 */}
+            {isSelectionMode && (<div className="bg-indigo-50 dark:bg-indigo-900/20 px-4 py-2 flex justify-between items-center text-xs text-indigo-600 dark:text-indigo-300 border-b border-indigo-100 dark:border-indigo-500/20"><span className="font-bold">已选: {selectedPlayerNames.size}</span><div className="flex gap-3"><button onClick={() => setShowSelectedOnly(!showSelectedOnly)} className="hover:underline">{showSelectedOnly ? '显示全部' : '仅看已选'}</button><button onClick={onClearSelection} className="hover:underline">清空</button></div></div>)}
+
+            {/* 核心表格 */}
+            <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-50 dark:bg-[#0f141a] text-slate-500 text-[10px] uppercase font-bold tracking-widest sticky top-0 z-20">
+                        <tr>
+                            <th className="p-4 w-12 text-center sticky-col border-b border-slate-200 dark:border-slate-800 shadow-[1px_0_0_0_rgba(0,0,0,0.05)] dark:shadow-[1px_0_0_0_rgba(255,255,255,0.05)]">#</th>
+                            <th className="p-4 w-48 sticky-col left-12 border-b border-slate-200 dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">玩家</th>
+                            <th className={`p-4 text-right cursor-pointer hover:text-slate-800 dark:hover:text-white border-b border-slate-200 dark:border-slate-800 ${isSorted('powerScore') ? 'text-purple-600 dark:text-purple-400 bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('powerScore')}>综合评分</th>
+                            <th className="p-4 w-24 text-center border-b border-slate-200 dark:border-slate-800">近期状态</th>
+                            <th className={`p-4 text-right cursor-pointer hover:text-slate-800 dark:hover:text-white border-b border-slate-200 dark:border-slate-800 ${isSorted('avgScore') ? 'text-blue-600 dark:text-blue-400 bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('avgScore')}>场均分</th>
+                            <th className={`p-4 text-right hidden md:table-cell cursor-pointer hover:text-slate-800 dark:hover:text-white border-b border-slate-200 dark:border-slate-800 ${isSorted('avgChips') ? 'text-teal-600 dark:text-teal-400 bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('avgChips')}>场均筹码</th>
+                            <th className={`p-4 text-right cursor-pointer hover:text-slate-800 dark:hover:text-white border-b border-slate-200 dark:border-slate-800 ${isSorted('totalScore') ? 'text-emerald-600 dark:text-emerald-400 bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('totalScore')}>总积分</th>
+                            <th className={`p-4 text-right cursor-pointer hover:text-slate-800 dark:hover:text-white border-b border-slate-200 dark:border-slate-800 ${isSorted('totalChips') ? 'text-red-600 dark:text-red-400 bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('totalChips')}>总筹码</th>
+                            <th className={`p-4 text-center cursor-pointer hover:text-slate-800 dark:hover:text-white border-b border-slate-200 dark:border-slate-800 ${isSorted('wins') ? 'text-yellow-600 dark:text-yellow-400 bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('wins')}>吃鸡数</th>
+                            <th className={`p-4 text-right hidden md:table-cell cursor-pointer hover:text-slate-800 dark:hover:text-white border-b border-slate-200 dark:border-slate-800 ${isSorted('goldContent') ? 'text-orange-600 dark:text-orange-400 bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('goldContent')}>含金量</th>
+                            <th className={`p-4 text-center hidden sm:table-cell ${isSorted('votedMvpCount') ? 'bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('votedMvpCount')}>MVP</th>
+                            <th className={`p-4 text-center hidden sm:table-cell ${isSorted('luckyCount') ? 'bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('luckyCount')}>运气王</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm font-medium">
+                        {data.map((p, idx) => (
+                            <tr key={p.name} onClick={() => isSelectionMode ? togglePlayerSelection(p.name) : onPlayerClick(p)} className={`table-row-hover transition-colors cursor-pointer group ${selectedPlayerNames.has(p.name) ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}>
+                                <td className="p-4 text-center font-mono text-slate-400 sticky-col group-hover:bg-slate-50 dark:group-hover:bg-[#161b22] transition-colors border-b border-slate-50 dark:border-slate-800/50">{isSelectionMode ? <input type="checkbox" checked={selectedPlayerNames.has(p.name)} onChange={()=>{}} className="mx-auto accent-indigo-500" /> : (idx < 3 ? <span className={`inline-block w-6 h-6 leading-6 rounded text-[10px] font-bold ${idx===0?'rank-badge-1':idx===1?'rank-badge-2':'rank-badge-3'}`}>{idx+1}</span> : idx+1)}</td>
+                                <td className="p-4 sticky-col left-12 group-hover:bg-slate-50 dark:group-hover:bg-[#161b22] transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] border-b border-slate-50 dark:border-slate-800/50"><div className="flex items-center gap-3"><Avatar name={p.name} src={p.avatar?.avatar || p.avatar} size="md" bordered={false} className="shadow-sm" /><span className="font-bold text-slate-700 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{p.name}</span></div></td>
+                                <td className={`p-4 text-right font-mono font-bold text-lg text-purple-600 dark:text-purple-400 ${isSorted('powerScore') ? 'sorted-cell-highlight' : ''}`}>{Math.round(p.powerScore)}</td>
+                                <td className="p-4"><Sparkline data={p.recentTrend} color={p.recentTrend[p.recentTrend.length-1] >= 10 ? '#059669' : '#94a3b8'} /></td>
+                                <td className={`p-4 text-right hidden sm:table-cell text-blue-600 dark:text-blue-400 ${isSorted('avgScore') ? 'sorted-cell-highlight' : ''}`}>{p.avgScore}</td>
+                                <td className={`p-4 text-right hidden md:table-cell text-teal-600 dark:text-teal-400 ${isSorted('avgChips') ? 'sorted-cell-highlight' : ''}`}>{Math.round(p.avgChips)}</td>
+                                <td className={`p-4 text-right font-mono text-emerald-600 dark:text-emerald-400 ${isSorted('totalScore') ? 'sorted-cell-highlight' : ''}`}>{p.totalScore}</td>
+                                <td className={`p-4 text-right font-mono ${p.totalChips >= 0 ? 'text-red-500 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'} ${isSorted('totalChips') ? 'sorted-cell-highlight' : ''}`}>{p.totalChips > 0 ? '+' : ''}{p.totalChips}</td>
+                                <td className={`p-4 text-center text-yellow-600 dark:text-yellow-400 font-bold ${isSorted('wins') ? 'sorted-cell-highlight' : ''}`}>{p.wins > 0 ? p.wins : <span className="text-slate-300 dark:text-slate-700 font-normal">-</span>}</td>
+                                <td className={`p-4 text-right hidden md:table-cell text-orange-500 dark:text-orange-400 ${isSorted('goldContent') ? 'sorted-cell-highlight' : ''}`}>{p.goldContent}</td>
+                                <td className={`p-4 text-center hidden sm:table-cell ${isSorted('votedMvpCount') ? 'sorted-cell-highlight' : ''}`}>{p.votedMvpCount > 0 && <span className="bg-indigo-100 text-indigo-700 dark:bg-purple-900/30 dark:text-purple-400 text-[10px] px-1.5 py-0.5 rounded border border-indigo-200 dark:border-purple-500/20">{p.votedMvpCount}</span>}</td>
+                                <td className={`p-4 text-center hidden sm:table-cell ${isSorted('luckyCount') ? 'sorted-cell-highlight' : ''}`}>{p.luckyCount > 0 && <span className="bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 text-[10px] px-1.5 py-0.5 rounded border border-pink-200 dark:border-pink-500/20">{p.luckyCount}</span>}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+export default Leaderboard;
+
+================================================
+FILE PATH: src\components\tabs\MatchHistory.jsx
+================================================
+import React from 'react';
+import Icon from '../Icon';
+
+const MatchHistory = ({ 
+    matches, 
+    matchSeasons, 
+    isAdmin, 
+    highlightMatchId, 
+    onEdit, 
+    onDelete, 
+    onSettle 
+}) => {
+    return (
+        <div className="space-y-4">
+            {matches.map((m) => (
+                <div 
+                    id={`match-${m.id}`}
+                    key={m.id} 
+                    className={`glass-panel rounded-xl overflow-hidden group border border-slate-200 dark:border-slate-700/50 ${highlightMatchId === m.id ? 'animate-pulse-highlight ring-2 ring-emerald-500 dark:ring-emerald-400' : ''}`}
+                >
+                    <div className="bg-slate-50 dark:bg-slate-800/60 p-3 px-4 flex justify-between items-center border-b border-slate-200 dark:border-slate-700/50">
+                        <div className="flex items-center gap-3">
+                            <span className="font-mono text-emerald-600 dark:text-emerald-400 text-sm font-bold">{m.date}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold">{matchSeasons[m.id]}</span>
+                            <span className="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">{m.totalPlayers} 人参赛</span>
+                        </div>
+                        
+                        {isAdmin && (
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                <button onClick={() => onSettle(m)} className="flex items-center gap-1 px-2 py-1 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors">
+                                    <Icon name="banknote" className="w-3.5 h-3.5"/> 结算
+                                </button>
+                                <button onClick={() => onEdit(m)} className="text-blue-500 hover:text-blue-600"><Icon name="edit-2" className="w-4 h-4"/></button>
+                                <button onClick={() => onDelete(m.id)} className="text-red-500 hover:text-red-600"><Icon name="trash" className="w-4 h-4"/></button>
+                            </div>
+                        )}
+                    </div>
+                    <div className="p-4 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+                        {m.results.map((r) => (
+                            <div key={r.name} className={`relative p-2 rounded border flex flex-col items-center justify-center text-center transition-colors ${r.rank===1 ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-500/10 dark:border-yellow-500/30' : 'bg-white dark:bg-slate-800/30 border-slate-100 dark:border-slate-700/30'}`}>
+                                <span className={`text-[10px] font-bold absolute top-1 left-2 ${r.rank===1?'text-yellow-600 dark:text-yellow-500':'text-slate-400'}`}>#{r.rank}</span>
+                                <div className="font-bold text-sm text-slate-700 dark:text-slate-200 mt-1 mb-1">{r.name}</div>
+                                <div className="flex gap-2 text-[10px] font-mono">
+                                    <span className={r.chips>=0?'text-red-500 dark:text-red-300':'text-emerald-600 dark:text-emerald-300'}>{r.chips}</span>
+                                    <span className="text-slate-300 dark:text-slate-500">|</span>
+                                    <span className="text-slate-600 dark:text-white">+{r.score}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+export default MatchHistory;
+
+================================================
+FILE PATH: src\components\tabs\NewGameForm.jsx
+================================================
+import React, { useState, useEffect, useMemo } from 'react';
+import Icon from '../Icon';
+import { BASE_SCORES, CHIP_EXCHANGE_RATE } from '../../lib/utils'; // 注意路径 ../../
+
+const NewGameForm = ({ isAdmin, allPlayerNames, editingMatch, onSave, onCancelEdit }) => {
+    // 内部状态
+    const [gameDate, setGameDate] = useState(new Date().toISOString().slice(0, 10));
+    const [roster, setRoster] = useState([]);
+    const [transactions, setTransactions] = useState([]);
+    const [finalStacks, setFinalStacks] = useState({});
+    const [votedMvp, setVotedMvp] = useState('');
+    const [luckyPlayer, setLuckyPlayer] = useState('');
+    const [newPlayerName, setNewPlayerName] = useState('');
+    
+    // 交易临时状态
+    const [buyInBuyer, setBuyInBuyer] = useState('');
+    const [buyInAmount, setBuyInAmount] = useState('');
+    const [buyInSeller, setBuyInSeller] = useState('Official');
+
+    // 监听编辑模式
+    useEffect(() => {
+        if (editingMatch) {
+            setGameDate(editingMatch.date);
+            setVotedMvp(editingMatch.votedMvp || '');
+            setLuckyPlayer(editingMatch.luckyPlayer || '');
+            if (editingMatch.roster) {
+                setRoster(editingMatch.roster);
+                setTransactions(editingMatch.transactions || []);
+                setFinalStacks(editingMatch.finalStacks || {});
+            } else {
+                setRoster(editingMatch.results.map(r => r.name));
+                setTransactions([]);
+                const stacks = {};
+                editingMatch.results.forEach(r => stacks[r.name] = r.chips);
+                setFinalStacks(stacks);
+                alert("注意：正在编辑旧版本数据，流水已重置，请手动补全。");
+            }
+        } else {
+            setRoster([]); setTransactions([]); setFinalStacks({}); setVotedMvp(''); setLuckyPlayer('');
+        }
+    }, [editingMatch]);
+
+    // 逻辑函数
+    const addPlayerToRoster = () => { 
+        if (newPlayerName && !roster.includes(newPlayerName)) { 
+            setRoster([...roster, newPlayerName]); 
+            setNewPlayerName(''); 
+        } 
+    };
+    
+    const removePlayerFromRoster = (name) => { 
+        if (transactions.some(t => t.buyer === name || t.seller === name)) { 
+            alert("该玩家已有交易记录，无法移除。请先删除相关交易。"); 
+            return; 
+        } 
+        setRoster(roster.filter(n => n !== name)); 
+        const newStacks = {...finalStacks}; 
+        delete newStacks[name]; 
+        setFinalStacks(newStacks); 
+    };
+
+    const addTransaction = () => { 
+        if (!buyInBuyer || !buyInAmount) return; 
+        const amount = parseFloat(buyInAmount); 
+        if (isNaN(amount) || amount <= 0) return; 
+        const newTx = { id: Date.now(), buyer: buyInBuyer, amount: amount, seller: buyInSeller, time: new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'}) }; 
+        setTransactions([newTx, ...transactions]); 
+        setBuyInAmount(''); 
+    };
+
+    const deleteTransaction = (id) => setTransactions(transactions.filter(t => t.id !== id));
+    
+    const updateFinalStack = (name, value) => { 
+        setFinalStacks(prev => ({...prev, [name]: parseFloat(value) || 0})); 
+    };
+
+    const calculatedResults = useMemo(() => {
+        const buyIns = {}; roster.forEach(p => buyIns[p] = 0);
+        transactions.forEach(t => { 
+            if (buyIns[t.buyer] !== undefined) buyIns[t.buyer] += t.amount; 
+            if (t.seller !== 'Official' && buyIns[t.seller] !== undefined) { buyIns[t.seller] -= t.amount; } 
+        });
+        return roster.map(p => { 
+            const totalBuyIn = buyIns[p] || 0; 
+            const stack = finalStacks[p] || 0; 
+            const net = stack - totalBuyIn; 
+            return { name: p, totalBuyIn, finalStack: stack, net }; 
+        });
+    }, [roster, transactions, finalStacks]);
+
+    const handleSaveGame = () => {
+        if (roster.length < 2) return;
+        const totalNet = calculatedResults.reduce((sum, p) => sum + p.net, 0);
+        if (Math.abs(totalNet) > 0.1) {
+            alert(`⚠️ 账目不平！\n\n当前净盈亏总和: ${totalNet.toFixed(2)}\n必须等于 0 才能保存。`);
+            return;
+        }
+        const sorted = [...calculatedResults].sort((a, b) => b.net - a.net);
+        const factor = sorted.length / 10;
+        const results = sorted.map((p, i) => ({ 
+            name: p.name, 
+            chips: p.net, 
+            rank: i + 1, 
+            score: Math.round((i < 10 ? BASE_SCORES[i] * factor : 0) * 100) / 100 
+        }));
+        
+        const matchData = { 
+            date: gameDate, 
+            totalPlayers: sorted.length, 
+            results, 
+            votedMvp, 
+            luckyPlayer, 
+            roster, 
+            transactions, 
+            finalStacks 
+        };
+        
+        onSave(matchData);
+    };
+
+    if (!isAdmin) {
+        return (
+            <div className="glass-panel p-6 rounded-2xl max-w-4xl mx-auto shadow-lg border border-slate-200 dark:border-slate-700/50 text-center py-10">
+                <Icon name="lock" className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4"/>
+                <p className="text-slate-500 dark:text-slate-400 mb-4">需要管理员权限</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="glass-panel p-6 rounded-2xl max-w-4xl mx-auto shadow-lg border border-slate-200 dark:border-slate-700/50">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><Icon name="edit-3" className="w-5 h-5 text-emerald-500"/> 比赛管理台</h2>
+                {editingMatch && <button onClick={onCancelEdit} className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300">取消编辑</button>}
+            </div>
+
+            <div className="space-y-8">
+                {/* 顶部输入 */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="md:col-span-1">
+                        <label className="text-[10px] uppercase font-bold text-slate-500 mb-2 block">比赛日期</label>
+                        <input type="date" value={gameDate} onChange={e=>setGameDate(e.target.value)} className="input-pro w-full p-2.5 rounded-lg bg-white dark:bg-slate-900" />
+                    </div>
+                    <div className="md:col-span-2">
+                        <label className="text-[10px] uppercase font-bold text-slate-500 mb-2 block">添加玩家到本局</label>
+                        <div className="flex gap-2">
+                            <input 
+                                type="text" 
+                                list="player-suggestions" 
+                                placeholder="输入或选择玩家..." 
+                                value={newPlayerName} 
+                                onChange={e=>setNewPlayerName(e.target.value)} 
+                                onKeyDown={e=>e.key==='Enter'&&addPlayerToRoster()} 
+                                className="input-pro flex-1 p-2.5 rounded-lg bg-white dark:bg-slate-900" 
+                            />
+                            <datalist id="player-suggestions">{allPlayerNames.map(name => <option key={name} value={name} />)}</datalist>
+                            <button onClick={addPlayerToRoster} className="bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 text-white px-4 rounded-lg"><Icon name="plus" className="w-5 h-5"/></button>
+                        </div>
+                    </div>
+                </div>
+
+                {roster.length > 0 && (
+                    <>
+                        <hr className="border-slate-200 dark:border-slate-700/50" />
+                        
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* 左侧：买入记录 */}
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><Icon name="shopping-cart" className="w-4 h-4"/> 买入/交易记录</h3>
+                                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 flex flex-wrap gap-2 items-end">
+                                    <div className="flex-1 min-w-[100px]">
+                                        <span className="text-[10px] text-slate-400 block mb-1">买家</span>
+                                        <select value={buyInBuyer} onChange={e=>setBuyInBuyer(e.target.value)} className="input-pro w-full p-2 rounded text-sm bg-white dark:bg-slate-900"><option value="">选择玩家</option>{roster.map(p=><option key={p} value={p}>{p}</option>)}</select>
+                                    </div>
+                                    <div className="w-24">
+                                        <span className="text-[10px] text-slate-400 block mb-1">金额</span>
+                                        <input type="number" value={buyInAmount} onChange={e=>setBuyInAmount(e.target.value)} className="input-pro w-full p-2 rounded text-sm bg-white dark:bg-slate-900" placeholder="0" />
+                                    </div>
+                                    <div className="flex-1 min-w-[100px]">
+                                        <span className="text-[10px] text-slate-400 block mb-1">卖家</span>
+                                        <select value={buyInSeller} onChange={e=>setBuyInSeller(e.target.value)} className="input-pro w-full p-2 rounded text-sm bg-white dark:bg-slate-900"><option value="Official">🏛️ 官方</option>{roster.filter(p=>p!==buyInBuyer).map(p=><option key={p} value={p}>👤 {p}</option>)}</select>
+                                    </div>
+                                    <button onClick={addTransaction} className="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded w-10 h-[38px] flex items-center justify-center"><Icon name="check" className="w-5 h-5"/></button>
+                                </div>
+                                <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
+                                    {transactions.map(t => (
+                                        <div key={t.id} className="flex justify-between items-center text-xs bg-white dark:bg-slate-900 p-2 rounded border border-slate-100 dark:border-slate-800 animate-slide-up">
+                                            <div className="flex items-center gap-2"><span className="text-slate-400 font-mono">{t.time}</span><span className="font-bold text-slate-700 dark:text-slate-200">{t.buyer}</span><span className="text-slate-400">买入</span><span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">{t.amount}</span><span className="text-slate-400">来自</span><span className={t.seller==='Official'?'text-blue-500':'text-slate-700 dark:text-slate-200'}>{t.seller==='Official'?'官方':t.seller}</span></div>
+                                            <button onClick={()=>deleteTransaction(t.id)} className="text-slate-400 hover:text-red-500"><Icon name="trash-2" className="w-3 h-3"/></button>
+                                        </div>
+                                    ))}
+                                    {transactions.length===0 && <div className="text-center text-slate-400 text-xs py-4">暂无交易记录</div>}
+                                </div>
+                            </div>
+
+                            {/* 右侧：离场计算 */}
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><Icon name="calculator" className="w-4 h-4"/> 离场清算 (自动计算净胜)</h3>
+                                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                                    <table className="w-full text-xs">
+                                        <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500">
+                                            <tr><th className="p-3 text-left">玩家</th><th className="p-3 text-right">总投入</th><th className="p-3 text-right w-24">剩余筹码</th><th className="p-3 text-right">净盈亏</th><th className="p-3 w-8"></th></tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                            {calculatedResults.map((p) => (
+                                                <tr key={p.name}>
+                                                    <td className="p-3 font-medium text-slate-700 dark:text-slate-200">{p.name}</td>
+                                                    <td className="p-3 text-right text-red-400 font-mono">-{p.totalBuyIn}</td>
+                                                    <td className="p-2"><input type="number" placeholder="0" value={finalStacks[p.name] || ''} onChange={e=>updateFinalStack(p.name, e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded p-1 text-right font-mono focus:border-emerald-500 outline-none" /></td>
+                                                    <td className={`p-3 text-right font-bold font-mono ${p.net >= 0 ? 'text-red-500 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{p.net > 0 ? '+' : ''}{p.net}</td>
+                                                    <td className="p-2 text-center"><button onClick={()=>removePlayerFromRoster(p.name)} className="text-slate-400 hover:text-red-500"><Icon name="x" className="w-3 h-3"/></button></td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 底部：MVP 和保存 */}
+                        <div className="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl grid grid-cols-2 gap-4 border border-slate-200 dark:border-slate-700/50">
+                            <div>
+                                <label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block">MVP 票选</label>
+                                <select value={votedMvp} onChange={e=>setVotedMvp(e.target.value)} className="input-pro w-full p-2 rounded bg-white dark:bg-slate-900"><option value="">- 无 -</option>{roster.map(p=><option key={p} value={p}>{p}</option>)}</select>
+                            </div>
+                            <div>
+                                <label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block">运气王</label>
+                                <select value={luckyPlayer} onChange={e=>setLuckyPlayer(e.target.value)} className="input-pro w-full p-2 rounded bg-white dark:bg-slate-900"><option value="">- 无 -</option>{roster.map(p=><option key={p} value={p}>{p}</option>)}</select>
+                            </div>
+                        </div>
+
+                        <button onClick={handleSaveGame} disabled={roster.length < 2} className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex justify-center items-center gap-2">
+                            <Icon name="save" className="w-5 h-5"/> {editingMatch ? "更新比赛记录" : "结算并保存"}
+                        </button>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
+export default NewGameForm;
+
+================================================
+FILE PATH: src\components\tabs\Settings.jsx
+================================================
+import React, { useState } from 'react';
+import Icon from '../Icon';
+import { updateDoc, doc, setDoc, deleteDoc, getDoc, writeBatch, collection, signInWithEmailAndPassword, signOut } from '../../lib/firebase'; // 注意路径 ../../
+
+const Settings = ({ 
+    user, 
+    isAdmin, 
+    allPlayerNames, 
+    playerProfiles, 
+    matchHistory,
+    auth,
+    db,
+    onTriggerSecurity 
+}) => {
+    // 本地状态
+    const [loginEmail, setLoginEmail] = useState("");
+    const [loginPwd, setLoginPwd] = useState("");
+    const [renameFrom, setRenameFrom] = useState('');
+    const [renameTo, setRenameTo] = useState('');
+    const [realNameTarget, setRealNameTarget] = useState('');
+    const [realNameInput, setRealNameInput] = useState('');
+
+    // --- 逻辑函数 ---
+    
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        try { await signInWithEmailAndPassword(auth, loginEmail, loginPwd); setLoginEmail(""); setLoginPwd(""); } 
+        catch(err) { alert("登录失败: " + err.message); }
+    };
+
+    const handleLogout = async () => {
+        try { await signOut(auth); alert("已安全退出"); } 
+        catch (e) { console.error(e); }
+    };
+
+    const handleUpdateRealName = async () => {
+        if (!realNameTarget || !realNameInput) return alert("请填写完整");
+        try {
+            await setDoc(doc(db, "profiles", realNameTarget), { realName: realNameInput }, { merge: true });
+            alert(`绑定成功！\n网名：${realNameTarget}\n真名：${realNameInput}`);
+            setRealNameInput('');
+        } catch (e) { alert("绑定失败: " + e.message); }
+    };
+
+    const handleRenamePlayer = async () => {
+        if (!renameFrom || !renameTo) return alert("请选择原名并输入新名");
+        if (renameFrom === renameTo) return alert("新旧名字不能相同");
+        if (!confirm(`⚠️ 高危操作警告！\n即将把 "${renameFrom}" 变更为 "${renameTo}"。\n数据将自动合并，确定吗？`)) return;
+
+        try {
+            const matchesToUpdate = [];
+            matchHistory.forEach(m => {
+                let updated = false;
+                const newResults = m.results.map(r => { if (r.name === renameFrom) { updated = true; return { ...r, name: renameTo }; } return r; });
+                let newRoster = m.roster || [];
+                if (newRoster.includes(renameFrom)) { updated = true; newRoster = newRoster.map(n => n === renameFrom ? renameTo : n); }
+                let newTransactions = m.transactions || [];
+                let txUpdated = false;
+                newTransactions = newTransactions.map(t => { let tMod = {...t}; if (t.buyer === renameFrom) { tMod.buyer = renameTo; txUpdated = true; } if (t.seller === renameFrom) { tMod.seller = renameTo; txUpdated = true; } return tMod; });
+                if (txUpdated) updated = true;
+                let newStacks = {...(m.finalStacks || {})};
+                if (newStacks[renameFrom] !== undefined) { newStacks[renameTo] = newStacks[renameFrom]; delete newStacks[renameFrom]; updated = true; }
+                let newMvp = m.votedMvp; if (newMvp === renameFrom) { newMvp = renameTo; updated = true; }
+                let newLucky = m.luckyPlayer; if (newLucky === renameFrom) { newLucky = renameTo; updated = true; }
+                if (updated) { matchesToUpdate.push({ ref: doc(db, "matches", m.id), data: { results: newResults, roster: newRoster, transactions: newTransactions, finalStacks: newStacks, votedMvp: newMvp, luckyPlayer: newLucky } }); }
+            });
+            await Promise.all(matchesToUpdate.map(item => updateDoc(item.ref, item.data)));
+            
+            // 迁移 Profile
+            const oldProfileRef = doc(db, "profiles", renameFrom);
+            const newProfileRef = doc(db, "profiles", renameTo);
+            const oldProfileSnap = await getDoc(oldProfileRef);
+            if (oldProfileSnap.exists()) { await setDoc(newProfileRef, oldProfileSnap.data(), { merge: true }); await deleteDoc(oldProfileRef); }
+            
+            alert(`成功！已更新 ${matchesToUpdate.length} 场比赛记录。`);
+            setRenameFrom(''); setRenameTo('');
+        } catch (e) { alert("更名失败: " + e.message); }
+    };
+
+    const exportCloudData = () => {
+        const data = { history: matchHistory, profiles: playerProfiles };
+        const blob = new Blob([JSON.stringify(data)], {type: "application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `PokerData_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+    };
+
+    // 触发安全弹窗
+    const triggerClear = () => onTriggerSecurity({ type: 'clear' });
+    const triggerImport = (e) => {
+        if(e.target.files[0]) onTriggerSecurity({ type: 'import', file: e.target.files[0] });
+        e.target.value = null; 
+    };
+
+    // --- 渲染 ---
+
+    return (
+        <div className="glass-panel p-6 rounded-2xl max-w-2xl mx-auto space-y-8 shadow-lg border border-slate-200 dark:border-slate-700/50">
+            {isAdmin ? (
+                <div className="space-y-8">
+                    {/* 管理员状态 */}
+                    <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-200 dark:border-emerald-800 flex justify-between items-center">
+                        <div><h3 className="font-bold text-emerald-800 dark:text-emerald-400">管理员已登录</h3><p className="text-xs text-emerald-600 dark:text-emerald-500">{user.email}</p></div>
+                        <button onClick={handleLogout} className="px-4 py-2 bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 text-sm font-bold rounded-lg shadow-sm border border-emerald-100 dark:border-emerald-900">退出</button>
+                    </div>
+
+                    {/* 实名认证 */}
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2"><Icon name="user-check" className="w-5 h-5 text-emerald-500"/> 实名备注管理</h2>
+                        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">选择网名</label>
+                                    <select value={realNameTarget} onChange={e => setRealNameTarget(e.target.value)} className="input-pro w-full p-2.5 rounded-lg text-sm bg-white dark:bg-slate-900">
+                                        <option value="">-- 请选择 --</option>
+                                        {allPlayerNames.map(n => <option key={n} value={n}>{n} {playerProfiles[n]?.realName ? `✅` : ''}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">输入真名</label>
+                                    <input type="text" value={realNameInput} onChange={e => setRealNameInput(e.target.value)} className="input-pro w-full p-2.5 rounded-lg text-sm bg-white dark:bg-slate-900" placeholder="例如：张伟" />
+                                </div>
+                            </div>
+                            <button onClick={handleUpdateRealName} disabled={!realNameTarget || !realNameInput} className="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2"><Icon name="save" className="w-4 h-4"/> 保存备注</button>
+                        </div>
+                    </div>
+
+                    {/* 更名工具 */}
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2"><Icon name="users" className="w-5 h-5 text-indigo-500"/> 玩家更名/迁移工具</h2>
+                        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">原名 (Old)</label>
+                                    <select value={renameFrom} onChange={e => setRenameFrom(e.target.value)} className="input-pro w-full p-2.5 rounded-lg text-sm bg-white dark:bg-slate-900"><option value="">-- 请选择 --</option>{allPlayerNames.map(n => <option key={n} value={n}>{n}</option>)}</select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">新名 (New)</label>
+                                    <input type="text" value={renameTo} onChange={e => setRenameTo(e.target.value)} className="input-pro w-full p-2.5 rounded-lg text-sm bg-white dark:bg-slate-900" placeholder="例如：AKKing" />
+                                </div>
+                            </div>
+                            <button onClick={handleRenamePlayer} disabled={!renameFrom || !renameTo} className="mt-4 w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2"><Icon name="refresh-cw" className="w-4 h-4"/> 执行批量更名</button>
+                        </div>
+                    </div>
+
+                    {/* 备份恢复 */}
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-700/50">
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2"><Icon name="database" className="w-5 h-5 text-emerald-500"/> 备份与恢复</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <button onClick={exportCloudData} className="bg-blue-50 dark:bg-blue-600/20 hover:bg-blue-100 border border-blue-200 dark:border-blue-500/50 text-blue-600 dark:text-blue-400 p-4 rounded-xl flex flex-col items-center gap-2"><Icon name="download" className="w-8 h-8"/><span className="font-bold">导出备份</span></button>
+                            <label className="bg-emerald-50 dark:bg-emerald-600/20 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-500/50 text-emerald-600 dark:text-emerald-400 p-4 rounded-xl flex flex-col items-center gap-2 cursor-pointer"><Icon name="upload" className="w-8 h-8"/><span className="font-bold">导入恢复</span><input type="file" className="hidden" onChange={triggerImport} /></label>
+                        </div>
+                    </div>
+
+                    {/* 危险区域 */}
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-700/50">
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2"><Icon name="alert-triangle" className="w-5 h-5 text-red-500"/> 危险区域</h2>
+                        <button onClick={triggerClear} className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 p-3 rounded-lg font-bold flex items-center justify-center gap-2 w-full"><Icon name="trash-2" className="w-4 h-4"/> 清空云端数据</button>
+                    </div>
+                </div>
+            ) : (
+                <div>
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2"><Icon name="shield" className="w-5 h-5 text-purple-500"/> 管理员登录</h2>
+                    <form onSubmit={handleLogin} className="space-y-4 max-w-md">
+                        <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">邮箱</label><input type="email" required value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} className="input-pro w-full p-2.5 rounded-lg" /></div>
+                        <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">密码</label><input type="password" required value={loginPwd} onChange={e=>setLoginPwd(e.target.value)} className="input-pro w-full p-2.5 rounded-lg" /></div>
+                        <button type="submit" className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-lg transition-all shadow-lg">登录云端控制台</button>
+                    </form>
+                </div>
+            )}
+            
+            <div className="text-center text-xs text-slate-400 mt-8">145 联赛数据中心 v10.5 (Refactored)</div>
+        </div>
+    );
+};
+
+export default Settings;
+
+================================================
+FILE PATH: src\index.css
+================================================
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 下面接着粘贴你原来的 CSS 代码... */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+    --bg-page: #f8fafc;
+    --bg-page-gradient: radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.08) 0px, transparent 50%);
+    --glass-bg: rgba(255, 255, 255, 0.75);
+    --glass-border: rgba(226, 232, 240, 0.8);
+    --glass-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --text-highlight: #059669;
+    --table-header-bg: rgba(241, 245, 249, 0.8);
+    --table-row-hover: rgba(248, 250, 252, 0.8);
+    --card-highlight: rgba(255, 255, 255, 0.9);
+}
+
+.dark {
+    --bg-page: #0b0e14;
+    --bg-page-gradient: radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.15) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%);
+    --glass-bg: rgba(30, 41, 59, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-highlight: #34d399;
+    --table-header-bg: rgba(15, 23, 42, 0.6);
+    --table-row-hover: rgba(255, 255, 255, 0.03);
+    --card-highlight: rgba(30, 41, 59, 0.8);
+}
+
+body { 
+    background-color: var(--bg-page);
+    background-image: var(--bg-page-gradient);
+    background-attachment: fixed;
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    -webkit-font-smoothing: antialiased;
+}
+
+.glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    transition: all 0.3s ease;
+}
+
+.glass-header {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--glass-border);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+.input-pro {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    transition: all 0.2s;
+}
+.dark .input-pro { background-color: rgba(15, 23, 42, 0.6); }
+.input-pro:not(.dark .input-pro) { background-color: rgba(255, 255, 255, 0.8); }
+
+.input-pro:focus {
+    border-color: #10b981;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+    outline: none;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.dark ::-webkit-scrollbar-thumb { background: #334155; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+.animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+.rank-badge-1 { background: linear-gradient(135deg, #fbbf24, #d97706); box-shadow: 0 2px 10px rgba(251, 191, 36, 0.3); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+.rank-badge-2 { background: linear-gradient(135deg, #94a3b8, #64748b); box-shadow: 0 2px 10px rgba(148, 163, 184, 0.3); color: #fff; }
+.rank-badge-3 { background: linear-gradient(135deg, #fdba74, #c2410c); box-shadow: 0 2px 10px rgba(234, 88, 12, 0.3); color: #fff; }
+
+.table-row-hover:hover td { background-color: var(--table-row-hover); }
+.sticky-col { position: sticky; left: 0; z-index: 10; background: var(--bg-page); transition: background-color 0.3s; }
+
+.sorted-cell-highlight { background-color: rgba(16, 185, 129, 0.05); font-weight: 700; }
+.dark .sorted-cell-highlight { background-color: rgba(255, 255, 255, 0.03); }
+.font-clock { font-family: 'JetBrains Mono', monospace; font-feature-settings: "tnum"; }
+
+/* Loading Overlay */
+.loading-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; color: white; flex-direction: column; gap: 16px; }
+.spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-left-color: #10b981; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* --- 📱 手机端极致体验优化补丁 --- */
+.safe-area-bottom {
+    padding-bottom: constant(safe-area-inset-bottom);
+    padding-bottom: env(safe-area-inset-bottom);
+    height: calc(60px + env(safe-area-inset-bottom));
+}
+
+@media screen and (max-width: 768px) {
+    .input-pro, select, input {
+        font-size: 16px !important; 
+    }
+}
+
+body.modal-open {
+    overflow: hidden;
+}
+
+.safe-area-bottom button:active {
+    transform: scale(0.9);
+    transition: transform 0.1s;
+}
+
+================================================
+FILE PATH: src\lib\firebase.js
+================================================
+// src/lib/firebase.js
+import { initializeApp } from "firebase/app";
+import { 
+    getFirestore, 
+    collection, 
+    addDoc, 
+    getDocs, 
+    getDoc, 
+    updateDoc, 
+    doc, 
+    deleteDoc, 
+    onSnapshot, 
+    query, 
+    orderBy, 
+    setDoc, 
+    writeBatch 
+} from "firebase/firestore";
+import { 
+    getAuth, 
+    signInWithEmailAndPassword, 
+    signOut, 
+    onAuthStateChanged 
+} from "firebase/auth";
+
+// 你的真实配置
+const firebaseConfig = {
+    apiKey: "***REMOVED***",
+    authDomain: "***REMOVED***",
+    projectId: "***REMOVED***",
+    storageBucket: "***REMOVED***.firebasestorage.app",
+    messagingSenderId: "***REMOVED***",
+    appId: "1:***REMOVED***:web:f9914cb9aa967e6c494e6b",
+    measurementId: "***REMOVED***"
+};
+
+let app, db, auth;
+
+try {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    auth = getAuth(app);
+} catch (e) {
+    console.error("Firebase Init Error:", e);
+}
+
+// 导出实例，供其他文件使用
+export { db, auth };
+
+// 导出方法，方便统一引用
+export { 
+    collection, addDoc, getDocs, getDoc, updateDoc, doc, 
+    deleteDoc, onSnapshot, query, orderBy, setDoc, writeBatch, 
+    signInWithEmailAndPassword, signOut, onAuthStateChanged 
+};
+
+================================================
+FILE PATH: src\lib\utils.js
+================================================
+// src/lib/utils.js
+
+// ================= 常量定义 =================
+export const BASE_SCORES = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+export const GAMES_PER_SEASON = 10;
+export const CHIP_EXCHANGE_RATE = 100;
+export const BADGE_THRESHOLD = 1600;
+
+// ================= 工具函数 =================
+
+/**
+ * 获取 ISO 周数
+ */
+export const getISOWeek = (dateString) => {
+    const date = new Date(dateString);
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+    return `${d.getUTCFullYear()}-W${weekNo}`;
+};
+
+/**
+ * 图片压缩
+ */
+export const compressImage = (file) => {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const size = 150; 
+                canvas.width = size;
+                canvas.height = size;
+                ctx.drawImage(img, 0, 0, size, size);
+                resolve(canvas.toDataURL('image/jpeg', 0.85));
+            };
+        };
+    });
+};
+
+/**
+ * 核心算法：计算最小转账路径 (智能结算)
+ * @param {Array} results - 比赛结果数组 [{name, chips, ...}]
+ */
+export const calculateSettlements = (results) => {
+    let debtors = [];
+    let creditors = [];
+    
+    // 1. 分离赢家和输家
+    results.forEach(r => {
+        const chips = parseFloat(r.chips);
+        if (chips < 0) debtors.push({ name: r.name, amount: -chips }); // 输家欠的钱（转正数）
+        else if (chips > 0) creditors.push({ name: r.name, amount: chips }); // 赢家该得的钱
+    });
+
+    // 2. 排序：欠得多的和赢得多的先结算，效率最高
+    debtors.sort((a, b) => b.amount - a.amount);
+    creditors.sort((a, b) => b.amount - a.amount);
+
+    const transactions = [];
+    let i = 0; 
+    let j = 0;
+
+    // 3. 双指针抵消算法
+    while (i < debtors.length && j < creditors.length) {
+        const debtor = debtors[i];
+        const creditor = creditors[j];
+        
+        // 取两者最小值作为转账额
+        const amount = Math.min(debtor.amount, creditor.amount);
+        
+        if (amount > 0) {
+            transactions.push({ 
+                from: debtor.name, 
+                to: creditor.name, 
+                amount: parseFloat(amount.toFixed(2)) 
+            });
+        }
+
+        // 更新剩余金额
+        debtor.amount -= amount;
+        creditor.amount -= amount;
+
+        // 如果一方结清了，指针后移
+        if (debtor.amount < 0.01) i++;
+        if (creditor.amount < 0.01) j++;
+    }
+    
+    return transactions;
+};
+
+================================================
+FILE PATH: src\main.jsx
+================================================
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+
+================================================
+FILE PATH: package.json
+================================================
+{
+  "name": "league-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "firebase": "^12.7.0",
+    "lucide-react": "^0.562.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "autoprefixer": "^10.4.23",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "vite": "^7.2.4"
+  }
+}
+
+
+================================================
+FILE PATH: vite.config.js
+================================================
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
+
+
+================================================
+FILE PATH: index.html
+================================================
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>145联赛数据中心</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+
+================================================
+FILE PATH: postcss.config.js
+================================================
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+
+================================================
+FILE PATH: tailwind.config.js
+================================================
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'Microsoft YaHei', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+      },
+      colors: {
+        brand: {
+          50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7', 
+          400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857', 
+          800: '#065f46', 900: '#064e3b', 950: '#022c22',
+        }
+      },
+      animation: {
+        'slide-up': 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'modal': 'modalShow 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'pulse-highlight': 'pulseHighlight 2s cubic-bezier(0.4, 0, 0.6, 1) 2',
+      },
+      keyframes: {
+        slideUp: {
+          'from': { opacity: 0, transform: 'translateY(15px)' },
+          'to': { opacity: 1, transform: 'translateY(0)' },
+        },
+        modalShow: {
+          'from': { opacity: 0, transform: 'scale(0.95)' },
+          'to': { opacity: 1, transform: 'scale(1)' },
+        },
+        pulseHighlight: {
+          '0%, 100%': { boxShadow: '0 0 0 0px rgba(16, 185, 129, 0.7)' },
+          '50%': { boxShadow: '0 0 0 10px rgba(16, 185, 129, 0)' },
+        }
+      }
+    },
+  },
+  plugins: [],
+}

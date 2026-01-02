@@ -11,8 +11,20 @@ const Dashboard = ({
     onNavigateToHistory,
     GAMES_PER_SEASON 
 }) => {
+    // 提取前三名
+    const top3 = statsData.leaderboardData.slice(0, 3);
+    const first = top3[0];
+    const second = top3[1];
+    const third = top3[2];
+
+    // 计算更有意义的指标：平均参赛人数
+    const avgPlayers = statsData.seasonStats.totalGames > 0 
+        ? (statsData.leaderboardData.reduce((acc, p) => acc + p.gamesPlayed, 0) / statsData.seasonStats.totalGames).toFixed(1)
+        : 0;
+
     return (
         <>
+            {/* 顶部控制栏 */}
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                     <Icon name="layout-dashboard" className="w-6 h-6 text-emerald-500"/> 概览
@@ -22,7 +34,7 @@ const Dashboard = ({
                     <select 
                         value={selectedSeason} 
                         onChange={e => onSeasonChange(e.target.value)} 
-                        className="input-pro py-1 px-3 rounded-lg text-sm bg-white dark:bg-slate-800 border-none font-mono"
+                        className="input-pro py-1 px-3 rounded-lg text-sm bg-white dark:bg-slate-800 border-none font-mono cursor-pointer"
                     >
                         <option value="all">🏆 全赛季 (All-Time)</option>
                         {availableSeasons.map(s => {
@@ -35,40 +47,118 @@ const Dashboard = ({
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-                {/* 榜首卡片 */}
-                <div 
-                    onClick={() => statsData.topPower && onPlayerClick(statsData.topPower)}
-                    className="lg:col-span-2 glass-panel rounded-2xl p-6 relative overflow-hidden group border border-slate-200 dark:border-slate-700 cursor-pointer hover:shadow-lg transition-all"
-                >
-                    <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-purple-500/10 dark:bg-purple-500/20 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-all"></div>
-                    <div className="relative z-10 flex items-center gap-6">
-                        <div className="relative">
-                            <Avatar name={statsData.topPower?.name} src={statsData.topPower?.avatar?.avatar || statsData.topPower?.avatar} size="xl" className="border-4 border-slate-100 dark:border-slate-800 shadow-xl" />
-                            <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded-full shadow-lg border border-yellow-200">NO.1</div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+                
+                {/* === 核心升级：荣耀领奖台 (占 7 列) === */}
+                <div className="lg:col-span-7 glass-panel rounded-2xl p-6 relative overflow-hidden border border-slate-200 dark:border-slate-700/50 flex flex-col justify-end min-h-[280px]">
+                    {/* 背景光效 */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-gradient-to-b from-blue-500/5 to-transparent pointer-events-none"></div>
+                    
+                    <div className="text-center mb-auto">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Current Leaderboard</h3>
+                        <div className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-1">
+                            {selectedSeason === 'all' ? '总积分榜前三' : `S${selectedSeason.slice(1)} 赛季三巨头`}
                         </div>
-                        <div>
-                            <div className="text-xs font-bold text-purple-500 uppercase tracking-widest mb-1">{selectedSeason === 'all' ? '总榜领跑者 (League Leader)' : `S${selectedSeason.slice(1)} 赛季领跑者`}</div>
-                            <div className="text-3xl font-black text-slate-800 dark:text-white mb-1">{statsData.topPower?.name || '暂无数据'}</div>
-                            <div className="flex gap-3 text-sm">
-                                <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">战力 {Math.round(statsData.topPower?.powerScore || 0)}</span>
-                                <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">胜率 {statsData.topPower?.gamesPlayed ? Math.round((statsData.topPower.wins/statsData.topPower.gamesPlayed)*100) : 0}%</span>
+                    </div>
+
+                    <div className="flex justify-center items-end gap-2 sm:gap-6 mt-4 pb-2">
+                        
+                        {/* 🥈 第二名 (左侧) */}
+                        {second && (
+                            <div className="flex flex-col items-center group cursor-pointer" onClick={() => onPlayerClick(second)}>
+                                <div className="relative mb-3 transition-transform group-hover:-translate-y-1">
+                                    <Avatar name={second.name} src={second.avatar} size="lg" className="border-4 border-slate-300 shadow-lg" />
+                                    <div className="absolute -bottom-2 -right-1 bg-slate-300 text-slate-700 text-[10px] font-black px-1.5 rounded shadow-sm">2</div>
+                                </div>
+                                <div className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">{second.name}</div>
+                                <div className="text-xs font-mono text-slate-400">
+                                    {Math.round(second.powerScore)} <span className="text-[10px] opacity-70">pts</span>
+                                </div>
+                                {/* 领奖台柱子 */}
+                                <div className="w-16 sm:w-20 h-24 bg-gradient-to-t from-slate-200 to-slate-100 dark:from-slate-800 dark:to-slate-700 rounded-t-lg mt-2 shadow-inner border-t border-slate-300 dark:border-slate-600"></div>
                             </div>
-                        </div>
+                        )}
+
+                        {/* 🥇 第一名 (中间，最高) */}
+                        {first && (
+                            <div className="flex flex-col items-center z-10 -mx-2 sm:mx-0 group cursor-pointer" onClick={() => onPlayerClick(first)}>
+                                <div className="relative mb-3 transition-transform group-hover:-translate-y-2">
+                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-yellow-400 animate-bounce"><Icon name="crown" className="w-6 h-6 fill-current"/></div>
+                                    <Avatar name={first.name} src={first.avatar} size="xl" className="border-4 border-yellow-400 shadow-xl shadow-yellow-400/20" />
+                                    <div className="absolute -bottom-3 -right-2 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded shadow-sm">1</div>
+                                </div>
+                                <div className="text-base font-black text-slate-800 dark:text-white mb-1">{first.name}</div>
+                                <div className="text-sm font-mono font-bold text-yellow-600 dark:text-yellow-400">
+                                    {Math.round(first.powerScore)} <span className="text-[10px] opacity-70">pts</span>
+                                </div>
+                                {/* 领奖台柱子 */}
+                                <div className="w-20 sm:w-24 h-32 bg-gradient-to-t from-yellow-100 to-white dark:from-yellow-900/30 dark:to-slate-700 rounded-t-lg mt-2 shadow-lg border-t border-yellow-200 dark:border-yellow-700/50 relative overflow-hidden">
+                                    <div className="absolute inset-0 bg-yellow-400/10"></div>
+                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-yellow-600/20 dark:text-yellow-400/20 font-black text-4xl">1</div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 🥉 第三名 (右侧) */}
+                        {third && (
+                            <div className="flex flex-col items-center group cursor-pointer" onClick={() => onPlayerClick(third)}>
+                                <div className="relative mb-3 transition-transform group-hover:-translate-y-1">
+                                    <Avatar name={third.name} src={third.avatar} size="lg" className="border-4 border-orange-300 shadow-lg" />
+                                    <div className="absolute -bottom-2 -right-1 bg-orange-300 text-orange-800 text-[10px] font-black px-1.5 rounded shadow-sm">3</div>
+                                </div>
+                                <div className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">{third.name}</div>
+                                <div className="text-xs font-mono text-slate-400">
+                                    {Math.round(third.powerScore)} <span className="text-[10px] opacity-70">pts</span>
+                                </div>
+                                {/* 领奖台柱子 */}
+                                <div className="w-16 sm:w-20 h-16 bg-gradient-to-t from-orange-100 to-white dark:from-orange-900/30 dark:to-slate-700 rounded-t-lg mt-2 shadow-inner border-t border-orange-200 dark:border-orange-800/50"></div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* 统计小卡片 */}
-                <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+                {/* === 数据卡片区 (占 5 列) === */}
+                <div className="lg:col-span-5 grid grid-cols-2 gap-4 content-start">
                     {[
-                        { l: '本赛季场次', v: statsData.seasonStats.totalGames + (selectedSeason === 'all' ? '' : ` / ${GAMES_PER_SEASON}`), i: 'hash', c: 'text-blue-500' },
-                        { l: '赛季总奖池', v: statsData.seasonStats.totalPot.toLocaleString(), i: 'database', c: 'text-emerald-500' },
-                        { l: '活跃玩家', v: statsData.seasonStats.activePlayers, i: 'users', c: 'text-orange-500' },
-                        { l: '单场最高分', v: `${statsData.highestSingle.score > -Infinity ? statsData.highestSingle.score : '-'} (${statsData.highestSingle.name})`, i: 'zap', c: 'text-yellow-500' }
+                        { 
+                            l: '总场次', 
+                            v: statsData.seasonStats.totalGames + (selectedSeason === 'all' ? '' : ` / ${GAMES_PER_SEASON}`), 
+                            i: 'hash', 
+                            c: 'text-blue-500',
+                            bg: 'bg-blue-50 dark:bg-blue-900/10' 
+                        },
+                        { 
+                            // ✅ 替换了之前的 "总奖池"
+                            l: '平均参赛人数', 
+                            v: avgPlayers, 
+                            i: 'users', 
+                            c: 'text-emerald-500',
+                            bg: 'bg-emerald-50 dark:bg-emerald-900/10',
+                            sub: '人/场' 
+                        },
+                        { 
+                            l: '活跃玩家', 
+                            v: statsData.seasonStats.activePlayers, 
+                            i: 'activity', 
+                            c: 'text-orange-500',
+                            bg: 'bg-orange-50 dark:bg-orange-900/10' 
+                        },
+                        { 
+                            l: '单场最高分', 
+                            v: statsData.highestSingle.score > -Infinity ? statsData.highestSingle.score : '-',
+                            sub: statsData.highestSingle.name,
+                            i: 'zap', 
+                            c: 'text-yellow-500',
+                            bg: 'bg-yellow-50 dark:bg-yellow-900/10' 
+                        }
                     ].map((item, idx) => (
-                        <div key={idx} className="glass-panel rounded-xl p-4 flex flex-col justify-center border border-slate-200 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                            <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1"><Icon name={item.i} className="w-3 h-3"/> {item.l}</div>
-                            <div className={`text-lg font-black ${item.c} font-mono truncate`}>{item.v}</div>
+                        <div key={idx} className={`rounded-xl p-4 flex flex-col justify-center border border-slate-100 dark:border-slate-800 ${item.bg} hover:scale-[1.02] transition-transform`}>
+                            <div className="text-[10px] uppercase font-bold text-slate-500/70 mb-1 flex items-center gap-1">
+                                <Icon name={item.i} className="w-3.5 h-3.5"/> {item.l}
+                            </div>
+                            <div className={`text-2xl font-black ${item.c} font-mono truncate tracking-tight`}>
+                                {item.v} <span className="text-xs text-slate-400 font-normal ml-1">{item.sub}</span>
+                            </div>
                         </div>
                     ))}
                 </div>

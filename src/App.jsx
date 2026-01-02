@@ -204,7 +204,13 @@ const App = () => {
             ? matchHistory 
             : matchHistory.filter(m => matchSeasons[m.id] === selectedSeason);
 
+        // 1. 获取本赛季目前的总场次 (防止分母为0，最少算1场)
+        const currentSeasonTotal = Math.max(1, filteredMatches.length);
         const currentK = Math.max(2, filteredMatches.length / 4);
+        
+        filteredMatches.forEach(match => {
+            // ... (这部分统计逻辑不用变) ...
+        });
         
         filteredMatches.forEach(match => {
             if (match.votedMvp) {
@@ -230,21 +236,116 @@ const App = () => {
             });
         });
 
+// --- 替换开始：五维加权 Pro 算法 ---
         Object.values(stats).forEach(p => {
+            // 基础数据计算
             if (p.gamesPlayed > maxG) maxG = p.gamesPlayed;
             const avg = p.gamesPlayed > 0 ? p.totalScore / p.gamesPlayed : 0;
             const avgChips = p.gamesPlayed > 0 ? p.totalChips / p.gamesPlayed : 0;
             const gc = p.totalScore > 0 ? p.totalChips / p.totalScore : 0;
-            const avgPercentile = p.gamesPlayed > 0 ? p.sumPercentile / p.gamesPlayed : 0; 
-            const adjWinRateForScore = p.wins / (p.gamesPlayed + currentK);
             
-            const power = (p.totalScore * 0.3) + (avg * 10) + (adjWinRateForScore * 50) + (p.votedMvpCount * 10) + (avgPercentile * 20);
+            // ===============================================
+            // 1. 计算雷达四维分数 (0-10分)
+            // ===============================================
             
-            p.avgScoreNum = avg; p.avgScore = avg.toFixed(2); p.totalScore = parseFloat(p.totalScore.toFixed(2));
-            p.goldContentVal = gc; p.goldContent = gc.toFixed(1); p.avgChips = avgChips; p.powerScore = power;
-            p.avgPercentile = avgPercentile; p.avatar = playerProfiles[p.name]?.avatar;
+            // [A] 效率 (Efficiency) - 权重 35%
+            const safeMaxAvgScore = leagueStats.maxAvgScore || 1;
+            const safeMaxGoldContent = leagueStats.maxGoldContent || 1;
+            const normAvgScore = safeMaxAvgScore > 0 ? avg / safeMaxAvgScore : 0;
+            const normGoldContent = safeMaxGoldContent > 0 ? gc / safeMaxGoldContent : 0;
+            const scoreEfficiency = Math.max(0, Math.min(10, (normAvgScore * 0.6 + normGoldContent * 0.4) * 10));
+
+            // [B] 掠夺 (Plunder) - 权重 30%
+            const rangeChips = leagueStats.maxAvgChips - leagueStats.minAvgChips;
+            const normChips = rangeChips > 0 ? (avgChips - leagueStats.minAvgChips) / rangeChips : 0.5;
+            const scorePlunder = Math.max(0, Math.min(10, normChips * 9 + 1));
+
+            // [C] 击败 (Defeat) - 权重 15%
+            const beatRate = p.gamesPlayed > 0 ? p.sumPercentile / p.gamesPlayed : 0;
+            const safeMaxBeat = leagueStats.maxAvgBeatRate || 1;
+            const normBeat = safeMaxBeat > 0 ? beatRate / safeMaxBeat : 0;
+            let scoreDefeat = normBeat * 10; 
+
+            // [D] 稳定 (Stability) - 权重 10%
+            // 计算排名标准差
+            let scoreStability = 5; // 默认中等
+            if (p.recentScores.length > 1) {
+                // 这里我们要反查每场比赛的排名，略复杂，简化为使用 recentScores 的分数波动
+                // 分数波动越小，越稳定
+                const meanScore = p.recentScores.reduce((acc, curr) => acc + curr.score, 0) / p.gamesPlayed;
+                const variance = p.recentScores.reduce((acc, curr) => acc + Math.pow(curr.score - meanScore, 2), 0) / p.gamesPlayed;
+                const stdDev = Math.sqrt(variance);
+                // 假设标准差 0 是满分10分，标准差 20 是0分
+                scoreStability = Math.max(0, Math.min(10, 10 - (stdDev / 2)));
+            }
+
+            // ===============================================
+            // 2. 综合战力公式
+            // ===============================================
+            
+            // 基础实力分 (满分100)
+            // 效率35% + 掠夺30% + 击败15% + 稳定10% = 90%
+            // 剩下 10% 留给 MVP
+            const baseSkill = (scoreEfficiency * 3.5) + (scorePlunder * 3.0) + (scoreDefeat * 1.5) + (scoreStability * 1.0);
+            
+            // MVP 加成 (每个MVP +5分，无上限，体现“大家认可的含金量”)
+            const mvpBonus = p.votedMvpCount * 5;
+
+            // 初步战力
+            let rawPower = baseSkill + mvpBonus;
+
+           // ===============================================
+            // 3. 活跃度修正 (动态出勤率版 - 修复赛季中途不公平问题)
+            // ===============================================
+            let activeCoeff = 1.0;
+            
+            // 计算个人出勤率 (0.0 - 1.0)
+            const attendanceRate = p.gamesPlayed / currentSeasonTotal;
+
+            if (attendanceRate >= 0.9) {
+                // ≥ 90% (如 4/4, 9/10): 绝对铁人，给糖吃
+                activeCoeff = 1.05; 
+            } else if (attendanceRate >= 0.7) {
+                // ≥ 70% (如 3/4, 7/10): 核心主力，满血
+                activeCoeff = 1.0; 
+            } else if (attendanceRate >= 0.5) {
+                // ≥ 50% (如 2/4, 5/10): 刚过半程，微扣
+                activeCoeff = 0.9; 
+            } else if (attendanceRate >= 0.3) {
+                // ≥ 30% (如 3/10): 还在验证期
+                activeCoeff = 0.8; 
+            } else {
+                // < 30% (如 1/4, 2/10): 样本太小，严厉压分
+                activeCoeff = 0.7; 
+            }
+
+            // 特殊保护：如果是赛季刚开始(比如只打了1场)，全员出勤率都是100%，
+            // 为了防止第一场赢了就直接封神，我们可以保留一个“最小绝对场次”的限制
+            // 但既然你希望赛季初也能体现排名，我们可以不加这个限制，
+            // 或者仅对 只打1场的情况 做极其微小的限制。
+            // 目前这个纯比例逻辑在 Game 1 时：
+            // 赢家 (1/1 = 100%) -> 系数 1.05 -> 排名第一 (合理)
+            // 没来的人 (0/1 = 0%) -> 无数据 (合理)
+            
+            const finalPower = rawPower * activeCoeff;
+
+            // ===============================================
+            // 4. 赋值
+            // ===============================================
+            p.avgScoreNum = avg; 
+            p.avgScore = avg.toFixed(2); 
+            p.totalScore = parseFloat(p.totalScore.toFixed(2));
+            p.goldContentVal = gc; 
+            p.goldContent = gc.toFixed(1); 
+            p.avgChips = avgChips; 
+            
+            p.powerScore = finalPower; // ✅ 更新这里
+            
+            p.avgPercentile = p.gamesPlayed > 0 ? p.sumPercentile / p.gamesPlayed : 0;
+            p.avatar = playerProfiles[p.name]?.avatar;
             p.recentTrend = p.recentScores.sort((a,b) => new Date(a.date) - new Date(b.date)).slice(-5).map(i => i.score);
         });
+        // --- 替换结束 ---
 
         let data = Object.values(stats);
         const seasonStats = { totalGames: filteredMatches.length, totalPot: seasonTotalChips, activePlayers: data.length };
