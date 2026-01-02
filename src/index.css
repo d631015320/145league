@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 下面接着粘贴你原来的 CSS 代码... */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+    --bg-page: #f8fafc;
+    --bg-page-gradient: radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.08) 0px, transparent 50%);
+    --glass-bg: rgba(255, 255, 255, 0.75);
+    --glass-border: rgba(226, 232, 240, 0.8);
+    --glass-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --text-highlight: #059669;
+    --table-header-bg: rgba(241, 245, 249, 0.8);
+    --table-row-hover: rgba(248, 250, 252, 0.8);
+    --card-highlight: rgba(255, 255, 255, 0.9);
+}
+
+.dark {
+    --bg-page: #0b0e14;
+    --bg-page-gradient: radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.15) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%);
+    --glass-bg: rgba(30, 41, 59, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-highlight: #34d399;
+    --table-header-bg: rgba(15, 23, 42, 0.6);
+    --table-row-hover: rgba(255, 255, 255, 0.03);
+    --card-highlight: rgba(30, 41, 59, 0.8);
+}
+
+body { 
+    background-color: var(--bg-page);
+    background-image: var(--bg-page-gradient);
+    background-attachment: fixed;
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    -webkit-font-smoothing: antialiased;
+}
+
+.glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    transition: all 0.3s ease;
+}
+
+.glass-header {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--glass-border);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+.input-pro {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    transition: all 0.2s;
+}
+.dark .input-pro { background-color: rgba(15, 23, 42, 0.6); }
+.input-pro:not(.dark .input-pro) { background-color: rgba(255, 255, 255, 0.8); }
+
+.input-pro:focus {
+    border-color: #10b981;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+    outline: none;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.dark ::-webkit-scrollbar-thumb { background: #334155; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+.animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+.rank-badge-1 { background: linear-gradient(135deg, #fbbf24, #d97706); box-shadow: 0 2px 10px rgba(251, 191, 36, 0.3); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+.rank-badge-2 { background: linear-gradient(135deg, #94a3b8, #64748b); box-shadow: 0 2px 10px rgba(148, 163, 184, 0.3); color: #fff; }
+.rank-badge-3 { background: linear-gradient(135deg, #fdba74, #c2410c); box-shadow: 0 2px 10px rgba(234, 88, 12, 0.3); color: #fff; }
+
+.table-row-hover:hover td { background-color: var(--table-row-hover); }
+.sticky-col { position: sticky; left: 0; z-index: 10; background: var(--bg-page); transition: background-color 0.3s; }
+
+.sorted-cell-highlight { background-color: rgba(16, 185, 129, 0.05); font-weight: 700; }
+.dark .sorted-cell-highlight { background-color: rgba(255, 255, 255, 0.03); }
+.font-clock { font-family: 'JetBrains Mono', monospace; font-feature-settings: "tnum"; }
+
+/* Loading Overlay */
+.loading-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; color: white; flex-direction: column; gap: 16px; }
+.spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-left-color: #10b981; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* --- 📱 手机端极致体验优化补丁 --- */
+.safe-area-bottom {
+    padding-bottom: constant(safe-area-inset-bottom);
+    padding-bottom: env(safe-area-inset-bottom);
+    height: calc(60px + env(safe-area-inset-bottom));
+}
+
+@media screen and (max-width: 768px) {
+    .input-pro, select, input {
+        font-size: 16px !important; 
+    }
+}
+
+body.modal-open {
+    overflow: hidden;
+}
+
+.safe-area-bottom button:active {
+    transform: scale(0.9);
+    transition: transform 0.1s;
+}
