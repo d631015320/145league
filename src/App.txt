@@ -10,19 +10,19 @@ import {
 import { GAMES_PER_SEASON } from './lib/utils';
 
 // --- 2. 引入公共组件 ---
-import Icon from './components/Icon.jsx';
-import Clock from './components/Clock.jsx';
-import SecurityModal from './components/SecurityModal.jsx';
-import SettlementModal from './components/SettlementModal.jsx';
+import Icon from './components/Icon';
+import Clock from './components/Clock';
+import SecurityModal from './components/SecurityModal';
+import SettlementModal from './components/SettlementModal';
 // 注意：PlayerProfileModal 如果你之前已经有独立文件就不用动，如果没有，请告诉我
 import PlayerProfileModal from './components/PlayerProfileModal'; 
 
 // --- 3. 引入刚才拆分的 Tab 页组件 ---
-import DashboardTab from './components/tabs/Dashboard.jsx';
-import LeaderboardTab from './components/tabs/Leaderboard.jsx';
-import MatchHistoryTab from './components/tabs/MatchHistory.jsx';
-import NewGameFormTab from './components/tabs/NewGameForm.jsx';
-import SettingsTab from './components/tabs/Settings.jsx';
+import DashboardTab from './components/tabs/Dashboard';
+import LeaderboardTab from './components/tabs/Leaderboard';
+import MatchHistoryTab from './components/tabs/MatchHistory';
+import NewGameFormTab from './components/tabs/NewGameForm';
+import SettingsTab from './components/tabs/Settings';
 
 const App = () => {
     // ===========================
