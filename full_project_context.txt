@@ -1,4 +1,4 @@
-PROJECT SCAN TIMESTAMP: 2026-01-02T07:40:39.375Z
+PROJECT SCAN TIMESTAMP: 2026-01-03T07:17:49.679Z
 
 
 
@@ -68,7 +68,6 @@ import Icon from './components/Icon.jsx';
 import Clock from './components/Clock.jsx';
 import SecurityModal from './components/SecurityModal.jsx';
 import SettlementModal from './components/SettlementModal.jsx';
-// 注意：PlayerProfileModal 如果你之前已经有独立文件就不用动，如果没有，请告诉我
 import PlayerProfileModal from './components/PlayerProfileModal'; 
 
 // --- 3. 引入刚才拆分的 Tab 页组件 ---
@@ -100,8 +99,17 @@ const App = () => {
     const [user, setUser] = useState(null);
     const [isAdmin, setIsAdmin] = useState(false);
 
-    // 筛选与排序状态 (驱动数据计算)
+    // 筛选与排序状态
     const [selectedSeason, setSelectedSeason] = useState('all');
+    // 修复：只保留这一个 availableSeasons 定义，且逻辑正确
+    const availableSeasons = useMemo(() => {
+        if (matchHistory.length === 0) return ['S1'];
+        // 向上取整，比如 12 场比赛 = 2 个赛季
+        const seasonsCount = Math.ceil(matchHistory.length / GAMES_PER_SEASON);
+        // 生成 ['S1', 'S2', ...]
+        return Array.from({ length: seasonsCount }, (_, i) => `S${i + 1}`);
+    }, [matchHistory]);
+
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'powerScore', direction: 'desc' });
     
@@ -125,13 +133,11 @@ const App = () => {
 
     // 1. Firebase 监听数据变化
     useEffect(() => {
-        // 监听登录状态
         const unsubAuth = onAuthStateChanged(auth, (u) => {
             setUser(u);
             setIsAdmin(!!u);
         });
 
-        // 监听比赛记录
         const q = query(collection(db, "matches"));
         const unsubMatches = onSnapshot(q, (snapshot) => {
             const matches = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
@@ -140,12 +146,10 @@ const App = () => {
             setLoading(false);
         }, (err) => console.error("Sync Error:", err));
 
-        // 监听玩家资料
         const unsubProfiles = onSnapshot(collection(db, "profiles"), (snapshot) => {
             const profiles = {};
             snapshot.docs.forEach(doc => {
                 const rawData = doc.data();
-                // 兼容旧数据格式
                 if (rawData.data && typeof rawData.data === 'string') {
                     profiles[doc.id] = { avatar: rawData.data, realName: rawData.realName || '' };
                 } else if (rawData.avatar) {
@@ -199,7 +203,7 @@ const App = () => {
         });
     }, [matchHistory]);
 
-    // 3. 计算赛季归属
+    // 3. 计算赛季归属 (MatchSeasons)
     const matchSeasons = useMemo(() => {
         const map = {};
         const ascHistory = [...matchHistory].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -209,12 +213,6 @@ const App = () => {
         });
         return map;
     }, [matchHistory]);
-
-    const availableSeasons = useMemo(() => {
-        const seasons = new Set();
-        Object.values(matchSeasons).forEach(s => seasons.add(s));
-        return Array.from(seasons).sort((a, b) => parseInt(b.slice(1)) - parseInt(a.slice(1)));
-    }, [matchSeasons]);
 
     // 4. 计算 Dashboard 用到的联盟极值 (Max/Min)
     const leagueStats = useMemo(() => {
@@ -249,103 +247,163 @@ const App = () => {
         return { maxAvgScore, maxGoldContent, maxAvgChips, minAvgChips, maxAvgBeatRate };
     }, [matchHistory]);
 
-    // 5. 计算排行榜核心数据 (StatsData)
+    // 5. 📊 核心数据计算中心 (支持赛季筛选 + 五维评分 + 动态活跃度)
     const statsData = useMemo(() => {
         const stats = {};
-        let maxG = 0; let seasonTotalChips = 0;
-        
-        const filteredMatches = selectedSeason === 'all' 
-            ? matchHistory 
-            : matchHistory.filter(m => matchSeasons[m.id] === selectedSeason);
+        let maxG = 0;
+        let seasonStats = { totalGames: 0, totalPot: 0, activePlayers: 0 };
+        let highestSingle = { name: '', score: -Infinity };
+        let latestMatch = null;
 
-        const currentK = Math.max(2, filteredMatches.length / 4);
-        
+        // 预处理：按时间正序排列 (Old -> New)
+        const sortedHistoryAsc = [...matchHistory].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        // 赛季筛选逻辑
+        let filteredMatches = [];
+        if (selectedSeason === 'all') {
+            filteredMatches = sortedHistoryAsc;
+        } else {
+            const seasonIndex = parseInt(selectedSeason.slice(1)) - 1; 
+            const start = seasonIndex * GAMES_PER_SEASON;
+            const end = start + GAMES_PER_SEASON;
+            filteredMatches = sortedHistoryAsc.slice(start, end);
+        }
+
+        // 统计基础数据
+        seasonStats.totalGames = filteredMatches.length;
+        if (seasonStats.totalGames === 0) {
+            return { 
+                leaderboardData: [], maxGames: 0, seasonStats, 
+                topPower: [], topAvgScore: [], highestSingle: { score: 0 }, 
+                latestMatch: null, biggestRivalry: null 
+            };
+        }
+
+        latestMatch = filteredMatches[filteredMatches.length - 1]; 
+        const rivalries = {};
+
+        // 遍历比赛累加
         filteredMatches.forEach(match => {
-            if (match.votedMvp) {
-                if (!stats[match.votedMvp]) stats[match.votedMvp] = { name: match.votedMvp, totalScore: 0, totalChips: 0, gamesPlayed: 0, wins: 0, votedMvpCount: 0, luckyCount: 0, sumPercentile: 0, recentScores: [], singleMax: -Infinity };
-                stats[match.votedMvp].votedMvpCount++;
-            }
-            if (match.luckyPlayer) {
-                if (!stats[match.luckyPlayer]) stats[match.luckyPlayer] = { name: match.luckyPlayer, totalScore: 0, totalChips: 0, gamesPlayed: 0, wins: 0, votedMvpCount: 0, luckyCount: 0, sumPercentile: 0, recentScores: [], singleMax: -Infinity };
-                stats[match.luckyPlayer].luckyCount++;
-            }
-            match.results.forEach(res => {
-                if (!stats[res.name]) stats[res.name] = { name: res.name, totalScore: 0, totalChips: 0, gamesPlayed: 0, wins: 0, votedMvpCount: 0, luckyCount: 0, sumPercentile: 0, recentScores: [], singleMax: -Infinity };
-                stats[res.name].totalScore += res.score;
-                stats[res.name].totalChips += (parseFloat(res.chips) || 0);
-                stats[res.name].gamesPlayed += 1;
-                stats[res.name].recentScores.push({ date: match.date, score: res.score }); 
-                if (res.score > stats[res.name].singleMax) stats[res.name].singleMax = res.score;
-                if (res.rank === 1) stats[res.name].wins += 1;
-                if (res.chips > 0) seasonTotalChips += res.chips;
-                const denominator = Math.max(1, match.totalPlayers - 1);
-                const percentile = (match.totalPlayers - res.rank) / denominator;
-                stats[res.name].sumPercentile += percentile;
+            seasonStats.totalPot += match.results.reduce((sum, r) => sum + (r.score > 0 ? r.score : 0), 0);
+            const playerSet = new Set();
+            match.results.forEach(r => {
+                playerSet.add(r.name);
+                if (!stats[r.name]) {
+                    stats[r.name] = {
+                        name: r.name, gamesPlayed: 0, totalScore: 0, totalChips: 0, wins: 0, 
+                        sumPercentile: 0, votedMvpCount: 0, recentScores: [], luckyCount: 0
+                    };
+                }
+                const p = stats[r.name];
+                p.gamesPlayed += 1;
+                p.totalScore += r.score;
+                p.totalChips += parseFloat(r.chips);
+                if (r.rank === 1) p.wins += 1;
+                p.recentScores.push({ date: match.date, score: r.score, rank: r.rank });
+                
+                const percentile = match.totalPlayers > 1 
+                    ? (match.totalPlayers - r.rank) / (match.totalPlayers - 1) : 0;
+                p.sumPercentile += percentile;
+
+                if (r.score > highestSingle.score) {
+                    highestSingle = { name: r.name, score: r.score, date: match.date };
+                }
             });
+            seasonStats.activePlayers = Object.keys(stats).length;
+
+            if (match.votedMvp && stats[match.votedMvp]) stats[match.votedMvp].votedMvpCount++;
+            if (match.luckyPlayer && stats[match.luckyPlayer]) stats[match.luckyPlayer].luckyCount++;
+
+            if (match.transactions) {
+                match.transactions.forEach(t => {
+                    if (t.seller === 'Official') return;
+                    const key = `${t.buyer}-${t.seller}`;
+                    if (!rivalries[key]) rivalries[key] = 0;
+                    rivalries[key] += t.amount;
+                });
+            }
         });
+
+        // 计算战力 (五维 + 动态活跃度)
+        const currentSeasonTotal = Math.max(1, filteredMatches.length);
 
         Object.values(stats).forEach(p => {
             if (p.gamesPlayed > maxG) maxG = p.gamesPlayed;
             const avg = p.gamesPlayed > 0 ? p.totalScore / p.gamesPlayed : 0;
             const avgChips = p.gamesPlayed > 0 ? p.totalChips / p.gamesPlayed : 0;
             const gc = p.totalScore > 0 ? p.totalChips / p.totalScore : 0;
-            const avgPercentile = p.gamesPlayed > 0 ? p.sumPercentile / p.gamesPlayed : 0; 
-            const adjWinRateForScore = p.wins / (p.gamesPlayed + currentK);
             
-            const power = (p.totalScore * 0.3) + (avg * 10) + (adjWinRateForScore * 50) + (p.votedMvpCount * 10) + (avgPercentile * 20);
-            
-            p.avgScoreNum = avg; p.avgScore = avg.toFixed(2); p.totalScore = parseFloat(p.totalScore.toFixed(2));
-            p.goldContentVal = gc; p.goldContent = gc.toFixed(1); p.avgChips = avgChips; p.powerScore = power;
-            p.avgPercentile = avgPercentile; p.avatar = playerProfiles[p.name]?.avatar;
-            p.recentTrend = p.recentScores.sort((a,b) => new Date(a.date) - new Date(b.date)).slice(-5).map(i => i.score);
-        });
+            // 五维评分
+            const safeMaxAvgScore = leagueStats.maxAvgScore || 1;
+            const safeMaxGoldContent = leagueStats.maxGoldContent || 1;
+            const normAvgScore = safeMaxAvgScore > 0 ? avg / safeMaxAvgScore : 0;
+            const normGoldContent = safeMaxGoldContent > 0 ? gc / safeMaxGoldContent : 0;
+            const scoreEfficiency = Math.max(0, Math.min(10, (normAvgScore * 0.6 + normGoldContent * 0.4) * 10));
 
-        let data = Object.values(stats);
-        const seasonStats = { totalGames: filteredMatches.length, totalPot: seasonTotalChips, activePlayers: data.length };
-        const topPower = [...data].sort((a,b) => b.powerScore - a.powerScore)[0];
-        const topAvgScore = [...data].filter(p => p.gamesPlayed > 0).sort((a,b) => b.avgScoreNum - a.avgScoreNum).slice(0, 3);
-        let highestSingle = { name: '-', score: 0 };
-        data.forEach(p => { if(p.singleMax > highestSingle.score) highestSingle = { name: p.name, score: p.singleMax }; });
+            const rangeChips = leagueStats.maxAvgChips - leagueStats.minAvgChips;
+            const normChips = rangeChips > 0 ? (avgChips - leagueStats.minAvgChips) / rangeChips : 0.5;
+            const scorePlunder = Math.max(0, Math.min(10, normChips * 9 + 1));
 
-        const sortedSeasonMatches = [...filteredMatches].sort((a, b) => {
-            const dateA = new Date(a.date); const dateB = new Date(b.date);
-            if (dateA > dateB) return -1; if (dateA < dateB) return 1; return b.id - a.id; 
-        });
-        const latestMatch = sortedSeasonMatches.length > 0 ? sortedSeasonMatches[0] : null;
+            const beatRate = p.gamesPlayed > 0 ? p.sumPercentile / p.gamesPlayed : 0;
+            const safeMaxBeat = leagueStats.maxAvgBeatRate || 1;
+            const normBeat = safeMaxBeat > 0 ? beatRate / safeMaxBeat : 0;
+            const scoreDefeat = normBeat * 10; 
 
-        if (searchTerm) { 
-            const lowerTerm = searchTerm.toLowerCase(); 
-            data = data.filter(p => p.name.toLowerCase().includes(lowerTerm) || p.powerScore.toString().includes(lowerTerm)); 
-        }
-        if (showSelectedOnly && selectedPlayerNames.size > 0) { 
-            data = data.filter(p => selectedPlayerNames.has(p.name)); 
-        }
-        
-        data.sort((a, b) => {
-            let valA, valB;
-            switch(sortConfig.key) {
-                case 'powerScore': valA = a.powerScore; valB = b.powerScore; break;
-                case 'avgScore': valA = a.avgScoreNum; valB = b.avgScoreNum; break;
-                case 'avgChips': valA = a.avgChips; valB = b.avgChips; break;
-                case 'totalScore': valA = a.totalScore; valB = b.totalScore; break;
-                case 'totalChips': valA = a.totalChips; valB = b.totalChips; break;
-                case 'wins': valA = a.wins; valB = b.wins; break;
-                case 'goldContent': valA = a.goldContentVal; valB = b.goldContentVal; break;
-                case 'votedMvpCount': valA = a.votedMvpCount; valB = b.votedMvpCount; break;
-                case 'luckyCount': valA = a.luckyCount; valB = b.luckyCount; break;
-                default: valA = a.totalScore; valB = b.totalScore;
+            let scoreStability = 5; 
+            if (p.recentScores.length > 1) {
+                const meanScore = p.recentScores.reduce((acc, curr) => acc + curr.score, 0) / p.gamesPlayed;
+                const variance = p.recentScores.reduce((acc, curr) => acc + Math.pow(curr.score - meanScore, 2), 0) / p.gamesPlayed;
+                const stdDev = Math.sqrt(variance);
+                scoreStability = Math.max(0, Math.min(10, 10 - (stdDev / 2)));
             }
-            return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
+
+            const baseSkill = (scoreEfficiency * 3.5) + (scorePlunder * 3.0) + (scoreDefeat * 1.5) + (scoreStability * 1.0);
+            const mvpBonus = p.votedMvpCount * 5;
+            const rawPower = baseSkill + mvpBonus;
+
+            // 动态活跃度 (5级阶梯)
+            let activeCoeff = 1.0;
+            const attendanceRate = p.gamesPlayed / currentSeasonTotal;
+            if (attendanceRate >= 0.9) activeCoeff = 1.05; // 铁人
+            else if (attendanceRate >= 0.7) activeCoeff = 1.0; // 主力
+            else if (attendanceRate >= 0.5) activeCoeff = 0.9; // 常客
+            else if (attendanceRate >= 0.3) activeCoeff = 0.8; // 试水
+            else activeCoeff = 0.5; // 游客
+
+            p.powerScore = rawPower * activeCoeff;
+
+            p.avgScoreNum = avg; 
+            p.avgScore = avg.toFixed(2); 
+            p.totalScore = parseFloat(p.totalScore.toFixed(2));
+            p.avgChips = avgChips;
+            p.avatar = playerProfiles[p.name]?.avatar;
+            p.recentTrend = p.recentScores.slice(-5).map(i => i.score);
         });
 
-        return { leaderboardData: data, maxGames: maxG, seasonStats, topPower, topAvgScore, highestSingle, latestMatch }; 
-    }, [matchHistory, sortConfig, playerProfiles, searchTerm, showSelectedOnly, selectedPlayerNames, selectedSeason, matchSeasons]); 
+        // 排序
+        const data = Object.values(stats).sort((a, b) => b.powerScore - a.powerScore);
+        const topPower = [...data].slice(0, 5);
+        const topAvgScore = [...data].sort((a, b) => b.avgScoreNum - a.avgScoreNum).slice(0, 3);
+
+        // 宿敌计算
+        let biggestRivalry = { loser: '', winner: '', amount: 0 };
+        Object.entries(rivalries).forEach(([key, amount]) => {
+            if (amount > biggestRivalry.amount) {
+                const [l, w] = key.split('-');
+                biggestRivalry = { loser: l, winner: w, amount };
+            }
+        });
+
+        return { 
+            leaderboardData: data, maxGames: maxG, seasonStats, 
+            topPower, topAvgScore, highestSingle, latestMatch, biggestRivalry 
+        };
+    }, [matchHistory, selectedSeason, leagueStats, playerProfiles]);
 
     // ===========================
     // D. 事件处理 (Handlers)
     // ===========================
 
-    // 保存比赛 (由 NewGameForm 触发)
     const handleSaveGame = async (matchData) => {
         try {
             if (editingMatchId) {
@@ -361,36 +419,30 @@ const App = () => {
         }
     };
 
-    // 删除比赛 (由 History 触发)
     const handleDeleteMatch = async (id) => {
         if(confirm("确认删除这场比赛记录吗?")) {
             await deleteDoc(doc(db, "matches", id));
         }
     };
 
-    // 开始编辑 (由 History 触发)
     const handleStartEdit = (match) => {
         setEditingMatchId(match.id);
         setActiveTab('newGame');
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // 排序
     const handleSort = (key) => {
         setSortConfig(prev => ({ 
-            key, 
-            direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc' 
+            key, direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc' 
         }));
     };
 
-    // 多选
     const togglePlayerSelection = (n) => { 
         const s = new Set(selectedPlayerNames); 
         if(s.has(n)) s.delete(n); else s.add(n); 
         setSelectedPlayerNames(s); 
     };
 
-    // 头像上传
     const handleUploadAvatar = async (name, base64) => {
         if(!user) return alert("需要管理员权限");
         try {
@@ -398,19 +450,16 @@ const App = () => {
         } catch(e) { console.error(e); alert("上传失败"); }
     };
 
-    // 个人详情页点击 "查看该场比赛"
     const handleNavigateToMatch = (matchId) => {
         setSelectedPlayer(null);
         setActiveTab('history');
-        // 简单处理：跳到历史页，高亮该比赛
-        setEditingMatchId(matchId); // 这里借用 editingMatchId 来做高亮，或者你可以单独搞一个 highlightId
+        setEditingMatchId(matchId); 
         setTimeout(() => {
             const el = document.getElementById(`match-${matchId}`);
             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 100);
     };
 
-    // 安全弹窗触发器 (Settings 触发)
     const handleTriggerSecurity = (action) => {
         setPendingAction(action);
         setIsSecModalOpen(true);
@@ -421,16 +470,7 @@ const App = () => {
         try {
             await signInWithEmailAndPassword(auth, user.email, password);
             setIsSecModalOpen(false);
-            
-            // 这里我们做一个特殊的处理：
-            // 因为 Settings 组件里的逻辑比较复杂（涉及到 FileReader），
-            // 建议把具体的“执行逻辑”还是放在 Settings 里，或者这里简单回调。
-            // 为了简化，这里我们只是模拟验证成功，真正的逻辑可以在 Settings 里监听 isSecModalOpen 关闭且 user 已登录来执行
-            // 但更好的做法是：把 performClear 等逻辑提到 App，或者 Settings 内部处理验证。
-            // 鉴于你之前代码的逻辑，我们这里简单处理：
             alert("验证成功！请再次点击按钮执行操作 (鉴权已通过)");
-            // 注意：完美的解法是把 import/clear 逻辑移到 App.jsx，但为了不改动太大，暂且保持这样。
-            
         } catch (e) { alert("密码错误，验证失败"); }
     };
 
@@ -546,6 +586,7 @@ const App = () => {
                     <NewGameFormTab 
                         isAdmin={isAdmin}
                         allPlayerNames={allPlayerNames}
+                        playerProfiles={playerProfiles}
                         editingMatch={matchHistory.find(m => m.id === editingMatchId)}
                         onSave={handleSaveGame}
                         onCancelEdit={() => setEditingMatchId(null)}
@@ -1017,11 +1058,10 @@ FILE PATH: src\components\PlayerProfileModal.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import Icon from './Icon';
 import Avatar from './Avatar';
-// 注意这里的路径：.. 代表回到上一级，进入 charts 文件夹
 import ProRadarChart from '../charts/ProRadarChart';
 import CareerChart from '../charts/CareerChart';
 import HeadToHead from './HeadToHead';
-import { BADGE_THRESHOLD, compressImage } from '../lib/utils';
+import { compressImage, GAMES_PER_SEASON, BADGE_CONFIG } from '../lib/utils'; // ✅ 引入 BADGE_CONFIG
 
 const PlayerProfileModal = ({ 
     player, 
@@ -1035,6 +1075,7 @@ const PlayerProfileModal = ({
     leaderboardData 
 }) => {
     const [compareTarget, setCompareTarget] = useState(''); 
+    const [isEditingAvatar, setIsEditingAvatar] = useState(false);
 
     if (!player) return null;
 
@@ -1050,7 +1091,6 @@ const PlayerProfileModal = ({
     const totalGames = playerMatches.length;
     const wins = playerMatches.filter(m => m.result.rank === 1).length;
     
-    // 锁定滚动条
     useEffect(() => { 
         document.body.classList.add('modal-open'); 
         return () => document.body.classList.remove('modal-open'); 
@@ -1060,45 +1100,47 @@ const PlayerProfileModal = ({
         if (e.target.files && e.target.files[0]) { 
             const base64 = await compressImage(e.target.files[0]); 
             onUploadAvatar(player.name, base64); 
+            setIsEditingAvatar(false);
         } 
     };
 
     const careerK = Math.max(2, history.length / 4);
     const adjWinRate = wins / (totalGames + careerK); 
 
-    // 🔥 提取雷达计算核心逻辑
+    // 🔥 雷达图计算逻辑
     const calculateRadarForPlayer = (targetPlayerName, targetMatches, targetTotalGames, targetTotalChips) => {
         if (targetTotalGames < 1) return [];
 
-        // 1. 稳定
         const ranks = targetMatches.map(m => m.result.rank);
         const avgRank = ranks.reduce((a,b)=>a+b,0) / ranks.length;
         const variance = ranks.reduce((a,b)=>a+Math.pow(b-avgRank,2),0) / ranks.length;
         const stdDev = Math.sqrt(variance);
         let stabilityScore = Math.max(1, Math.min(10, 10 - stdDev)); 
 
-        // 2. 效率
         const totalScore = targetMatches.reduce((a,b)=>a+b.result.score,0);
         const avgScore = totalScore / targetTotalGames;
+        const safeMaxAvgScore = leagueStats?.maxAvgScore || 1;
+        const safeMaxGoldContent = leagueStats?.maxGoldContent || 1;
+        
         const goldContent = totalScore > 0 ? targetTotalChips / totalScore : 0;
-        const normAvgScore = leagueStats.maxAvgScore > 0 ? avgScore / leagueStats.maxAvgScore : 0;
-        const safeMaxGoldContent = leagueStats.maxGoldContent || 1;
+        const normAvgScore = safeMaxAvgScore > 0 ? avgScore / safeMaxAvgScore : 0;
         const normGoldContent = safeMaxGoldContent > 0 ? goldContent / safeMaxGoldContent : 0;
         let efficiencyScore = Math.max(1, Math.min(10, (normAvgScore * 0.6 + normGoldContent * 0.4) * 10));
 
-        // 3. 掠夺
         const avgChips = targetTotalChips / targetTotalGames;
-        const range = leagueStats.maxAvgChips - leagueStats.minAvgChips;
-        const normChips = range > 0 ? (avgChips - leagueStats.minAvgChips) / range : 0.5;
+        const safeMinChips = leagueStats?.minAvgChips || 0;
+        const safeMaxChips = leagueStats?.maxAvgChips || 1;
+        const range = safeMaxChips - safeMinChips;
+        const normChips = range > 0 ? (avgChips - safeMinChips) / range : 0.5;
         let plunderScore = Math.max(1, Math.min(10, normChips * 9 + 1));
 
-        // 4. 击败
         const beatRates = targetMatches.map(m => {
             if (m.totalPlayers <= 1) return 0;
             return (m.totalPlayers - m.result.rank) / (m.totalPlayers - 1);
         });
         const avgBeatRate = beatRates.reduce((a,b)=>a+b,0) / beatRates.length;
-        const normBeatRate = leagueStats.maxAvgBeatRate > 0 ? avgBeatRate / leagueStats.maxAvgBeatRate : 0;
+        const safeMaxBeatRate = leagueStats?.maxAvgBeatRate || 1;
+        const normBeatRate = safeMaxBeatRate > 0 ? avgBeatRate / safeMaxBeatRate : 0;
         let defeatScore = 0;
         if (normBeatRate >= 0.9) defeatScore = 9 + (normBeatRate - 0.9) * 10;
         else if (normBeatRate >= 0.7) defeatScore = 7 + (normBeatRate - 0.7) * 10;
@@ -1114,12 +1156,10 @@ const PlayerProfileModal = ({
         ];
     };
 
-    // 计算当前玩家雷达
     const radarStats = useMemo(() => {
         return calculateRadarForPlayer(player.name, playerMatches, totalGames, player.totalChips);
     }, [player, totalGames, playerMatches, leagueStats]);
 
-    // 计算对比玩家雷达
     const compareRadarStats = useMemo(() => {
         if (!compareTarget || !leaderboardData) return null;
         const targetObj = leaderboardData.find(p => p.name === compareTarget);
@@ -1133,43 +1173,143 @@ const PlayerProfileModal = ({
         return calculateRadarForPlayer(compareTarget, targetMatches, targetObj.gamesPlayed, targetObj.totalChips);
     }, [compareTarget, history, leaderboardData, leagueStats]);
 
-    // 勋章逻辑
+    // 🌟🌟🌟 核心修改：升级版勋章逻辑 🌟🌟🌟
     const badges = useMemo(() => {
         const b = [];
+        
+        // --- 1. 按赛季计算 (全勤奖 & 筹码排行) ---
+        // 先将所有比赛按赛季分组
+        const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
+        const seasonsMap = {}; 
+        
+        sortedHistory.forEach((match, index) => {
+            const seasonNum = Math.ceil((index + 1) / GAMES_PER_SEASON);
+            const seasonKey = `S${seasonNum}`;
+            if (!seasonsMap[seasonKey]) seasonsMap[seasonKey] = [];
+            seasonsMap[seasonKey].push(match);
+        });
+
+        // 遍历每个赛季
+        Object.entries(seasonsMap).forEach(([seasonKey, matches]) => {
+            // A. 计算该玩家在本赛季的出勤
+            const myMatchesInSeason = matches.filter(m => m.results.some(r => r.name === player.name)).length;
+            const totalMatchesInSeason = matches.length;
+
+            // ✅ 规则1: 赛季全勤奖 (只要参与数 = 举办数，且大于0)
+            if (totalMatchesInSeason > 0 && myMatchesInSeason === totalMatchesInSeason) {
+                b.push({ 
+                    icon: 'calendar-check', 
+                    name: `${seasonKey} 全勤王`, 
+                    color: 'text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-400', 
+                    desc: `${seasonKey} 赛季保持全勤 (${myMatchesInSeason}/${totalMatchesInSeason})` 
+                });
+            }
+
+            // B. 计算该赛季的筹码排名 (金银铜筹码)
+            // 算出该赛季所有人的总筹码
+            const seasonChipsMap = {};
+            matches.forEach(m => {
+                m.results.forEach(r => {
+                    if (!seasonChipsMap[r.name]) seasonChipsMap[r.name] = 0;
+                    seasonChipsMap[r.name] += parseFloat(r.chips);
+                });
+            });
+            // 排序
+            const sortedSeasonPlayers = Object.entries(seasonChipsMap).sort(([, chipsA], [, chipsB]) => chipsB - chipsA);
+            const myRankIndex = sortedSeasonPlayers.findIndex(([name]) => name === player.name);
+
+            // ✅ 规则2: 赛季金银铜筹码
+            if (myRankIndex === 0) {
+                b.push({ icon: 'trophy', name: `${seasonKey} 金筹码`, color: 'text-yellow-600 bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-700 dark:text-yellow-400', desc: `${seasonKey} 赛季总筹码冠军` });
+            } else if (myRankIndex === 1) {
+                b.push({ icon: 'medal', name: `${seasonKey} 银筹码`, color: 'text-slate-500 bg-slate-100 border-slate-300 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300', desc: `${seasonKey} 赛季总筹码亚军` });
+            } else if (myRankIndex === 2) {
+                b.push({ icon: 'medal', name: `${seasonKey} 铜筹码`, color: 'text-orange-700 bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-700 dark:text-orange-400', desc: `${seasonKey} 赛季总筹码季军` });
+            }
+        });
+
+             // --- 2. 生涯通用勋章 (使用配置变量) ---
+        
+        // 👑 统治者
         const winRate = totalGames > 0 ? wins / totalGames : 0;
-        if (totalGames >= 5 && winRate >= 0.3) { b.push({ icon: 'crown', name: '统治者', color: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20', desc: '胜率超过 30% 的顶级鲨鱼' }); }
-        if (player.totalChips > 2000) { b.push({ icon: 'gem', name: '大富豪', color: 'text-purple-500 bg-purple-500/10 border-purple-500/20', desc: '累计盈利超过 2000 筹码' }); }
-        const charityCount = playerMatches.filter(m => m.result.chips <= -BADGE_THRESHOLD).length;
-        if (charityCount > 0) { b.push({ icon: 'heart-handshake', name: `慈善家${charityCount > 1 ? ' x' + charityCount : ''}`, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20', desc: `累计 ${charityCount} 次单场“贡献”超过 ${BADGE_THRESHOLD} 筹码` }); }
-        const nerveKnifeCount = playerMatches.filter(m => m.result.chips >= 2000).length;
-        if (nerveKnifeCount > 0) { b.push({ icon: 'zap', name: `神经刀${nerveKnifeCount > 1 ? ' x' + nerveKnifeCount : ''}`, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20', desc: `累计 ${nerveKnifeCount} 次单场狂揽 2000+ 筹码` }); }
+        if (totalGames >= 5 && winRate >= BADGE_CONFIG.RULER_WIN_RATE) { 
+            b.push({ icon: 'crown', name: '统治者', color: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20', desc: `生涯胜率超过 ${BADGE_CONFIG.RULER_WIN_RATE * 100}%` }); 
+        }
+        
+        // 🤝 慈善家 (现在有了独立的阈值: CHARITY_THRESHOLD)
+        // 注意：这里用 -BADGE_CONFIG.CHARITY_THRESHOLD，因为筹码是负数
+        const charityCount = playerMatches.filter(m => m.result.chips <= -BADGE_CONFIG.CHARITY_THRESHOLD).length;
+        if (charityCount > 0) { 
+            b.push({ icon: 'heart-handshake', name: `慈善家${charityCount > 1 ? ' x' + charityCount : ''}`, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20', desc: `累计 ${charityCount} 次单场“贡献”超过 ${BADGE_CONFIG.CHARITY_THRESHOLD} 筹码` }); 
+        }
+        
+        // ⚡️ 神经刀 (现在有了独立的阈值: NERVE_KNIFE_LIMIT)
+        const nerveKnifeCount = playerMatches.filter(m => m.result.chips >= BADGE_CONFIG.NERVE_KNIFE_LIMIT).length;
+        if (nerveKnifeCount > 0) { 
+            b.push({ icon: 'zap', name: `神经刀${nerveKnifeCount > 1 ? ' x' + nerveKnifeCount : ''}`, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20', desc: `累计 ${nerveKnifeCount} 次单场狂揽 ${BADGE_CONFIG.NERVE_KNIFE_LIMIT}+ 筹码` }); 
+        }
+        
+        // 🍀 天选之子 (逻辑不变)
         const luckyCounts = {}; history.forEach(m => { if(m.luckyPlayer) { luckyCounts[m.luckyPlayer] = (luckyCounts[m.luckyPlayer] || 0) + 1; } });
         const maxLucky = Math.max(0, ...Object.values(luckyCounts));
-        if (player.luckyCount > 0 && player.luckyCount >= maxLucky) { b.push({ icon: 'clover', name: '天选之子', color: 'text-pink-500 bg-pink-500/10 border-pink-500/20', desc: '获得运气王次数全联盟第一' }); }
-        if (totalGames >= 10) { b.push({ icon: 'shield', name: '老兵', color: 'text-blue-500 bg-blue-500/10 border-blue-500/20', desc: '参赛场次达到 10 场以上' }); }
+        if (player.luckyCount > 0 && player.luckyCount >= maxLucky) { 
+            b.push({ icon: 'clover', name: '天选之子', color: 'text-pink-500 bg-pink-500/10 border-pink-500/20', desc: '获得运气王次数全联盟第一' }); 
+        }
+        
+        // 🛡️ 老兵
+        if (totalGames >= BADGE_CONFIG.VETERAN_GAMES) { 
+            b.push({ icon: 'shield', name: '老兵', color: 'text-blue-500 bg-blue-500/10 border-blue-500/20', desc: `参赛场次达到 ${BADGE_CONFIG.VETERAN_GAMES} 场以上` }); 
+        }
+        
+        // 💔 意难平
         const secondPlacesCount = playerMatches.filter(m => m.result.rank === 2).length;
-        if (secondPlacesCount >= 3) { b.push({ icon: 'divide', name: `意难平 x${secondPlacesCount}`, color: 'text-slate-500 bg-slate-500/10 border-slate-500/20', desc: `累计获得 ${secondPlacesCount} 次亚军` }); }
-        const comebackCount = playerMatches.filter(m => { if (!m.transactions) return false; const myBuyIn = m.transactions.filter(t => t.buyer === player.name).reduce((sum, t) => sum + parseFloat(t.amount), 0); return myBuyIn >= BADGE_THRESHOLD && m.result.chips > 0; }).length;
-        if (comebackCount > 0) { b.push({ icon: 'trending-up', name: `逆风翻盘${comebackCount > 1 ? ' x' + comebackCount : ''}`, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20', desc: `累计 ${comebackCount} 次单场买入超 ${BADGE_THRESHOLD} 仍不仅没输，反而盈利` }); }
+        if (secondPlacesCount >= BADGE_CONFIG.SECOND_PLACE_COUNT) { 
+            b.push({ icon: 'divide', name: `意难平 x${secondPlacesCount}`, color: 'text-slate-500 bg-slate-500/10 border-slate-500/20', desc: `累计获得 ${secondPlacesCount} 次亚军` }); 
+        }
+        
+        // 📈 逆风翻盘 (现在有了独立的阈值: COMEBACK_BUYIN_THRESHOLD)
+        const comebackCount = playerMatches.filter(m => { 
+            if (!m.transactions) return false; 
+            const myBuyIn = m.transactions.filter(t => t.buyer === player.name).reduce((sum, t) => sum + parseFloat(t.amount), 0); 
+            // 判断条件：买入超过阈值 且 最后盈利 > 0
+            return myBuyIn >= BADGE_CONFIG.COMEBACK_BUYIN_THRESHOLD && m.result.chips > 0; 
+        }).length;
+        
+        if (comebackCount > 0) { 
+            b.push({ icon: 'trending-up', name: `逆风翻盘${comebackCount > 1 ? ' x' + comebackCount : ''}`, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20', desc: `累计 ${comebackCount} 次单场买入超 ${BADGE_CONFIG.COMEBACK_BUYIN_THRESHOLD} 仍不仅没输，反而盈利` }); 
+        }
+        
         return b;
     }, [player, totalGames, wins, playerMatches, history, adjWinRate]);
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md animate-modal" onClick={onClose}>
             <div className="glass-panel w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-2xl shadow-2xl relative bg-white/90 dark:bg-slate-900/90" onClick={e => e.stopPropagation()}>
+                
+                {/* 头部背景 */}
                 <div className="h-32 bg-gradient-to-r from-emerald-600 to-teal-700 dark:from-emerald-900 dark:to-slate-900 relative overflow-hidden">
                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-30"></div>
                     <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-black/20 text-white hover:bg-white/20 transition-colors z-10"><Icon name="x" className="w-5 h-5" /></button>
                 </div>
+                
                 <div className="px-8 pb-8 -mt-16 relative">
                     <div className="flex flex-col md:flex-row gap-6 items-start">
+                        {/* 头像区域 */}
                         <div className="relative group cursor-pointer">
                             <Avatar name={player.name} src={player.avatar?.avatar || player.avatar} size="xxl" className="border-4 border-white dark:border-[#0b0e14] shadow-2xl" />
-                            <label className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-all backdrop-blur-sm"><Icon name="camera" className="text-white w-8 h-8" /><input type="file" accept="image/*" className="hidden" onChange={handleFileChange} /></label>
+                            <label className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-all backdrop-blur-sm">
+                                <Icon name="camera" className="text-white w-8 h-8" />
+                                <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                            </label>
                         </div>
+                        
                         <div className="flex-1 pt-16 md:pt-0 md:mt-16">
-                            <div className="flex flex-wrap items-center gap-3 mb-1"><h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{player.name}</h2><span className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg shadow-indigo-500/20">OVR {Math.round(player.powerScore)}</span></div>
+                            <div className="flex flex-wrap items-center gap-3 mb-1">
+                                <h2 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{player.name}</h2>
+                                <span className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg shadow-indigo-500/20">OVR {Math.round(player.powerScore)}</span>
+                            </div>
                             
+                            {/* 勋章列表 */}
                             {badges.length > 0 && (
                                 <div className="flex flex-wrap gap-2 my-3 animate-slide-up">
                                     {badges.map((badge, idx) => (
@@ -1181,11 +1321,32 @@ const PlayerProfileModal = ({
                                 </div>
                             )}
 
-                            <div className="flex flex-wrap gap-2 text-sm text-slate-500 dark:text-slate-400">{player.votedMvpCount > 0 && <span className="flex items-center gap-1 text-indigo-600 dark:text-yellow-400"><Icon name="star" className="w-3 h-3 fill-current"/> {player.votedMvpCount} MVP</span>}{player.wins > 0 && <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><Icon name="trophy" className="w-3 h-3"/> {player.wins} 胜</span>}<span className="text-slate-300 dark:text-slate-600">|</span><span>{totalGames} 场比赛</span></div>
+                            <div className="flex flex-wrap gap-2 text-sm text-slate-500 dark:text-slate-400">
+                                {player.votedMvpCount > 0 && <span className="flex items-center gap-1 text-indigo-600 dark:text-yellow-400"><Icon name="star" className="w-3 h-3 fill-current"/> {player.votedMvpCount} MVP</span>}
+                                {player.wins > 0 && <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><Icon name="trophy" className="w-3 h-3"/> {player.wins} 胜</span>}
+                                <span className="text-slate-300 dark:text-slate-600">|</span><span>{totalGames} 场比赛</span>
+                            </div>
                         </div>
-                        <div className="hidden md:flex gap-8 mt-20"><div className="text-center"><div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">实战胜率 (Raw)</div><div className="text-2xl font-mono font-bold text-slate-700 dark:text-white">{totalGames ? ((wins/totalGames)*100).toFixed(1) : 0}%</div></div><div className="text-center"><div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">统治力指数 (Adj.)</div><div className="text-2xl font-mono font-bold text-indigo-600 dark:text-indigo-400">{(adjWinRate * 100).toFixed(1)}%</div></div><div className="text-center"><div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">场均得分</div><div className="text-2xl font-mono font-bold text-emerald-600 dark:text-emerald-400">{player.avgScore}</div></div></div>
+
+                        {/* 右侧核心数据 */}
+                        <div className="hidden md:flex gap-8 mt-20">
+                            <div className="text-center">
+                                <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">实战胜率 (Raw)</div>
+                                <div className="text-2xl font-mono font-bold text-slate-700 dark:text-white">{totalGames ? ((wins/totalGames)*100).toFixed(1) : 0}%</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">统治力指数 (Adj.)</div>
+                                <div className="text-2xl font-mono font-bold text-indigo-600 dark:text-indigo-400">{(adjWinRate * 100).toFixed(1)}%</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">场均得分</div>
+                                <div className="text-2xl font-mono font-bold text-emerald-600 dark:text-emerald-400">{player.avgScore}</div>
+                            </div>
+                        </div>
                     </div>
+
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+                        {/* 左侧：雷达图与交手记录 */}
                         <div className="lg:col-span-1 space-y-6">
                             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700/50 shadow-inner">
                                 <div className="flex justify-between items-center mb-4">
@@ -1241,9 +1402,36 @@ const PlayerProfileModal = ({
                             <HeadToHead player={player} opponent={compareTarget} history={history} />
                         </div>
 
+                        {/* 右侧：图表与列表 */}
                         <div className="lg:col-span-2 space-y-6">
-                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700/50 shadow-inner"><h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">赛季积分走势</h3><CareerChart history={playerMatches.map(m => ({ score: m.result.score }))} isDark={isDark} /></div>
-                            <div className="bg-white dark:bg-slate-800/50 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700/50 shadow-sm"><div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 flex justify-between items-center bg-slate-50/50 dark:bg-transparent"><h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">近期战绩 (点击查看详情)</h3><span className="text-xs text-slate-400">近 {playerMatches.length} 场</span></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 text-xs uppercase font-semibold"><tr><th className="px-4 py-2 text-left">日期</th><th className="px-4 py-2 text-center">排名</th><th className="px-4 py-2 text-right">筹码</th><th className="px-4 py-2 text-right">积分</th><th className="px-4 py-2 text-right">评分</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">{playerMatches.reverse().map(m => (<tr key={m.id} onClick={() => onNavigateToMatch(m.id)} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer"><td className="px-4 py-2 text-slate-600 dark:text-slate-300 font-mono text-xs">{m.date}</td><td className="px-4 py-2 text-center"><span className={`inline-block w-6 h-6 leading-6 rounded-full text-xs font-bold ${m.result.rank === 1 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400' : m.result.rank <= 3 ? 'bg-slate-200 text-slate-700 dark:bg-slate-600/50 dark:text-white' : 'text-slate-400'}`}>{m.result.rank}</span></td><td className={`px-4 py-2 text-right font-mono ${m.result.chips >= 0 ? 'text-red-500 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{m.result.chips > 0 ? '+' : ''}{m.result.chips}</td><td className="px-4 py-2 text-right font-bold text-slate-700 dark:text-white">+{m.result.score}</td><td className="px-4 py-2 text-right"><div className="w-16 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full ml-auto overflow-hidden"><div className="h-full bg-emerald-500" style={{ width: `${(m.result.score / 25) * 100}%` }}></div></div></td></tr>))}</tbody></table></div></div>
+                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700/50 shadow-inner">
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">赛季积分走势</h3>
+                                <CareerChart history={playerMatches.map(m => ({ score: m.result.score }))} isDark={isDark} />
+                            </div>
+                            <div className="bg-white dark:bg-slate-800/50 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700/50 shadow-sm">
+                                <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 flex justify-between items-center bg-slate-50/50 dark:bg-transparent">
+                                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">近期战绩 (点击查看详情)</h3>
+                                    <span className="text-xs text-slate-400">近 {playerMatches.length} 场</span>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 text-xs uppercase font-semibold">
+                                            <tr><th className="px-4 py-2 text-left">日期</th><th className="px-4 py-2 text-center">排名</th><th className="px-4 py-2 text-right">筹码</th><th className="px-4 py-2 text-right">积分</th><th className="px-4 py-2 text-right">评分</th></tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                                            {playerMatches.reverse().map(m => (
+                                                <tr key={m.id} onClick={() => onNavigateToMatch(m.id)} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer">
+                                                    <td className="px-4 py-2 text-slate-600 dark:text-slate-300 font-mono text-xs">{m.date}</td>
+                                                    <td className="px-4 py-2 text-center"><span className={`inline-block w-6 h-6 leading-6 rounded-full text-xs font-bold ${m.result.rank === 1 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400' : m.result.rank <= 3 ? 'bg-slate-200 text-slate-700 dark:bg-slate-600/50 dark:text-white' : 'text-slate-400'}`}>{m.result.rank}</span></td>
+                                                    <td className={`px-4 py-2 text-right font-mono ${m.result.chips >= 0 ? 'text-red-500 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{m.result.chips > 0 ? '+' : ''}{m.result.chips}</td>
+                                                    <td className="px-4 py-2 text-right font-bold text-slate-700 dark:text-white">+{m.result.score}</td>
+                                                    <td className="px-4 py-2 text-right"><div className="w-16 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full ml-auto overflow-hidden"><div className="h-full bg-emerald-500" style={{ width: `${(m.result.score / 25) * 100}%` }}></div></div></td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1315,56 +1503,114 @@ FILE PATH: src\components\SettlementModal.jsx
 import React from 'react';
 import Icon from './Icon';
 import Avatar from './Avatar';
-import { calculateSettlements, CHIP_EXCHANGE_RATE } from '../lib/utils'; // 注意路径 ../
+import { calculateSettlements, CHIP_EXCHANGE_RATE } from '../lib/utils';
 
 const SettlementModal = ({ data, profiles, onClose }) => {
+    // 重新计算转账列表
+    const transactions = calculateSettlements(data.results);
+    const totalFlow = transactions.reduce((acc, t) => acc + t.amount, 0);
+
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-modal" onClick={onClose}>
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
-                <div className="bg-emerald-600 p-4 text-white flex justify-between items-center">
-                    <h3 className="font-bold flex items-center gap-2"><Icon name="banknote" className="w-5 h-5"/> 智能结算方案</h3>
-                    <button onClick={onClose}><Icon name="x" className="w-5 h-5"/></button>
-                </div>
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">比赛日期</div>
-                    <div className="font-bold text-slate-800 dark:text-white">{data.date}</div>
-                </div>
-                <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3">
-                    {calculateSettlements(data.results).length === 0 ? (
-                        <div className="text-center text-slate-400 py-4">本局无需转账 (平局或数据为0)</div>
-                    ) : (
-                        calculateSettlements(data.results).map((t, idx) => (
-                            <div key={idx} className="flex items-center justify-between bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm relative overflow-hidden">
-                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500"></div>
-                                <div className="flex items-center gap-3 z-10">
-                                    <Avatar name={t.from} src={profiles[t.from]?.avatar} size="sm" bordered={false} />
-                                    <div className="text-sm">
-                                        <div className="font-bold text-slate-700 dark:text-slate-200">{t.from}</div>
-                                        {profiles[t.from]?.realName && <div className="text-[10px] text-slate-400">({profiles[t.from].realName})</div>}
-                                    </div>
-                                </div>
-                                <div className="flex flex-col items-center z-10 px-2">
-                                    <div className="text-[10px] text-slate-400 mb-1">支付给</div>
-                                    <Icon name="arrow-right" className="w-4 h-4 text-slate-300"/>
-                                </div>
-                                <div className="flex items-center gap-3 z-10 flex-row-reverse">
-                                    <Avatar name={t.to} src={profiles[t.to]?.avatar} size="sm" bordered={false} />
-                                    <div className="text-right text-sm">
-                                        <div className="font-bold text-slate-700 dark:text-slate-200">{t.to}</div>
-                                        {profiles[t.to]?.realName && <div className="text-[10px] text-slate-400">({profiles[t.to].realName})</div>}
-                                        <div className="text-emerald-600 dark:text-emerald-400 font-mono font-black mt-0.5">
-                                            ¥{(t.amount / CHIP_EXCHANGE_RATE).toFixed(2)}
-                                        </div>
-                                        <div className="text-[9px] text-slate-400">{t.amount} 筹码</div>
-                                    </div>
-                                    <div className="absolute right-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
-                                </div>
+            {/* 这里的 onClick stopPropagation 防止点击弹窗内部关闭 */}
+            <div className="w-full max-w-md relative" onClick={e => e.stopPropagation()}>
+                
+                {/* 关闭按钮 (悬浮在右上角) */}
+                <button 
+                    onClick={onClose} 
+                    className="absolute -top-12 right-0 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors backdrop-blur-md"
+                >
+                    <Icon name="x" className="w-6 h-6"/>
+                </button>
+
+                {/* === 票据主体 === */}
+                <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                    
+                    {/* 1. 顶部 Header (渐变背景) */}
+                    <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <Icon name="banknote" className="w-32 h-32 rotate-12"/>
+                        </div>
+                        <div className="relative z-10 text-center">
+                            <div className="text-emerald-100 text-xs font-bold uppercase tracking-widest mb-1">OFFICIAL SETTLEMENT</div>
+                            <h2 className="text-2xl font-black tracking-tight">本场结算单</h2>
+                            <div className="mt-2 text-emerald-100/80 font-mono text-sm">{data.date}</div>
+                        </div>
+                    </div>
+
+                    {/* 2. 统计概览 */}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-4 flex justify-between items-center border-b border-dashed border-slate-300 dark:border-slate-700">
+                        <div className="text-center flex-1 border-r border-slate-200 dark:border-slate-700 last:border-0">
+                            <div className="text-[12px] text-slate-400 uppercase font-bold">总筹码流水</div>
+                            <div className="text-lg font-black text-slate-700 dark:text-slate-200">{totalFlow} <span className="text-xs font-normal text-slate-400"></span></div>
+                        </div>
+                        <div className="text-center flex-1">
+                            <div className="text-[12px] text-slate-400 uppercase font-bold">转账笔数</div>
+                            <div className="text-lg font-black text-slate-700 dark:text-slate-200">{transactions.length}</div>
+                        </div>
+                    </div>
+
+                    {/* 3. 转账列表区域 */}
+                    <div className="max-h-[55vh] overflow-y-auto p-4 space-y-3 bg-slate-50/50 dark:bg-[#0b0e14]/50">
+                        {transactions.length === 0 ? (
+                            <div className="text-center py-10 opacity-50">
+                                <Icon name="check-circle" className="w-12 h-12 mx-auto mb-2 text-emerald-500"/>
+                                <p className="text-slate-500 font-bold">和平收场，无需转账</p>
                             </div>
-                        ))
-                    )}
-                </div>
-                <div className="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 text-center">
-                    <p className="text-[10px] text-slate-400">系统已自动计算最优转账路径，仅管理员可见</p>
+                        ) : (
+                            transactions.map((t, idx) => (
+                                <div key={idx} className="bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between relative overflow-hidden group">
+                                    
+                                    {/* 输家 (左) */}
+                                    <div className="flex flex-col items-center gap-2 w-20 z-10">
+                                        <div className="relative">
+                                            <Avatar name={t.from} src={profiles[t.from]?.avatar} size="md" className="border-2 border-red-100 dark:border-red-900/30" />
+                                            <div className="absolute -bottom-1 -right-1 bg-red-500 text-white text-[9px] px-1 rounded-sm font-bold">付</div>
+                                        </div>
+                                        <div className="text-xs font-bold text-slate-600 dark:text-slate-300 truncate w-full text-center">
+                                            {profiles[t.from]?.realName || t.from}
+                                        </div>
+                                    </div>
+
+                                    {/* 中间：金额与箭头 */}
+                                    <div className="flex-1 flex flex-col items-center justify-center relative z-10 px-2">
+                                        {/* 箭头动画背景 */}
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-10 text-emerald-500">
+                                            <Icon name="chevrons-right" className="w-full h-8 animate-pulse"/>
+                                        </div>
+                                        
+                                        <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                                            <span className="text-base mr-0.5">¥</span>
+                                            {(t.amount / CHIP_EXCHANGE_RATE).toFixed(2)}
+                                        </div>
+                                        <div className="text-[10px] text-slate-400 font-bold bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded-full mt-1">
+                                            {t.amount} 筹码
+                                        </div>
+                                    </div>
+
+                                    {/* 赢家 (右) */}
+                                    <div className="flex flex-col items-center gap-2 w-20 z-10">
+                                        <div className="relative">
+                                            <Avatar name={t.to} src={profiles[t.to]?.avatar} size="md" className="border-2 border-emerald-100 dark:border-emerald-900/30" />
+                                            <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white text-[9px] px-1 rounded-sm font-bold">收</div>
+                                        </div>
+                                        <div className="text-xs font-bold text-slate-600 dark:text-slate-300 truncate w-full text-center">
+                                            {profiles[t.to]?.realName || t.to}
+                                        </div>
+                                    </div>
+
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {/* 4. 底部 Footer */}
+                    <div className="p-3 bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 text-center">
+                        <p className="text-[10px] text-slate-400 flex items-center justify-center gap-1">
+                            <Icon name="shield-check" className="w-3 h-3"/>
+                            由系统自动生成，如有疑问请联系管理员。
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1389,8 +1635,20 @@ const Dashboard = ({
     onNavigateToHistory,
     GAMES_PER_SEASON 
 }) => {
+    // 提取前三名
+    const top3 = statsData.leaderboardData.slice(0, 3);
+    const first = top3[0];
+    const second = top3[1];
+    const third = top3[2];
+
+    // 计算更有意义的指标：平均参赛人数
+    const avgPlayers = statsData.seasonStats.totalGames > 0 
+        ? (statsData.leaderboardData.reduce((acc, p) => acc + p.gamesPlayed, 0) / statsData.seasonStats.totalGames).toFixed(1)
+        : 0;
+
     return (
         <>
+            {/* 顶部控制栏 */}
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                     <Icon name="layout-dashboard" className="w-6 h-6 text-emerald-500"/> 概览
@@ -1400,7 +1658,7 @@ const Dashboard = ({
                     <select 
                         value={selectedSeason} 
                         onChange={e => onSeasonChange(e.target.value)} 
-                        className="input-pro py-1 px-3 rounded-lg text-sm bg-white dark:bg-slate-800 border-none font-mono"
+                        className="input-pro py-1 px-3 rounded-lg text-sm bg-white dark:bg-slate-800 border-none font-mono cursor-pointer"
                     >
                         <option value="all">🏆 全赛季 (All-Time)</option>
                         {availableSeasons.map(s => {
@@ -1413,40 +1671,118 @@ const Dashboard = ({
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-                {/* 榜首卡片 */}
-                <div 
-                    onClick={() => statsData.topPower && onPlayerClick(statsData.topPower)}
-                    className="lg:col-span-2 glass-panel rounded-2xl p-6 relative overflow-hidden group border border-slate-200 dark:border-slate-700 cursor-pointer hover:shadow-lg transition-all"
-                >
-                    <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-purple-500/10 dark:bg-purple-500/20 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-all"></div>
-                    <div className="relative z-10 flex items-center gap-6">
-                        <div className="relative">
-                            <Avatar name={statsData.topPower?.name} src={statsData.topPower?.avatar?.avatar || statsData.topPower?.avatar} size="xl" className="border-4 border-slate-100 dark:border-slate-800 shadow-xl" />
-                            <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded-full shadow-lg border border-yellow-200">NO.1</div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+                
+                {/* === 核心升级：荣耀领奖台 (占 7 列) === */}
+                <div className="lg:col-span-7 glass-panel rounded-2xl p-6 relative overflow-hidden border border-slate-200 dark:border-slate-700/50 flex flex-col justify-end min-h-[280px]">
+                    {/* 背景光效 */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-gradient-to-b from-blue-500/5 to-transparent pointer-events-none"></div>
+                    
+                    <div className="text-center mb-auto">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Current Leaderboard</h3>
+                        <div className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-1">
+                            {selectedSeason === 'all' ? '战力榜前三' : `S${selectedSeason.slice(1)} 赛季三巨头`}
                         </div>
-                        <div>
-                            <div className="text-xs font-bold text-purple-500 uppercase tracking-widest mb-1">{selectedSeason === 'all' ? '总榜领跑者 (League Leader)' : `S${selectedSeason.slice(1)} 赛季领跑者`}</div>
-                            <div className="text-3xl font-black text-slate-800 dark:text-white mb-1">{statsData.topPower?.name || '暂无数据'}</div>
-                            <div className="flex gap-3 text-sm">
-                                <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">战力 {Math.round(statsData.topPower?.powerScore || 0)}</span>
-                                <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">胜率 {statsData.topPower?.gamesPlayed ? Math.round((statsData.topPower.wins/statsData.topPower.gamesPlayed)*100) : 0}%</span>
+                    </div>
+
+                    <div className="flex justify-center items-end gap-2 sm:gap-6 mt-4 pb-2">
+                        
+                        {/* 🥈 第二名 (左侧) */}
+                        {second && (
+                            <div className="flex flex-col items-center group cursor-pointer" onClick={() => onPlayerClick(second)}>
+                                <div className="relative mb-3 transition-transform group-hover:-translate-y-1">
+                                    <Avatar name={second.name} src={second.avatar} size="lg" className="border-4 border-slate-300 shadow-lg" />
+                                    <div className="absolute -bottom-2 -right-1 bg-slate-300 text-slate-700 text-[10px] font-black px-1.5 rounded shadow-sm">2</div>
+                                </div>
+                                <div className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">{second.name}</div>
+                                <div className="text-xs font-mono text-slate-400">
+                                    {Math.round(second.powerScore)} <span className="text-[10px] opacity-70">pts</span>
+                                </div>
+                                {/* 领奖台柱子 */}
+                                <div className="w-16 sm:w-20 h-24 bg-gradient-to-t from-slate-200 to-slate-100 dark:from-slate-800 dark:to-slate-700 rounded-t-lg mt-2 shadow-inner border-t border-slate-300 dark:border-slate-600"></div>
                             </div>
-                        </div>
+                        )}
+
+                        {/* 🥇 第一名 (中间，最高) */}
+                        {first && (
+                            <div className="flex flex-col items-center z-10 -mx-2 sm:mx-0 group cursor-pointer" onClick={() => onPlayerClick(first)}>
+                                <div className="relative mb-3 transition-transform group-hover:-translate-y-2">
+                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-yellow-400 animate-bounce"><Icon name="crown" className="w-6 h-6 fill-current"/></div>
+                                    <Avatar name={first.name} src={first.avatar} size="xl" className="border-4 border-yellow-400 shadow-xl shadow-yellow-400/20" />
+                                    <div className="absolute -bottom-3 -right-2 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded shadow-sm">1</div>
+                                </div>
+                                <div className="text-base font-black text-slate-800 dark:text-white mb-1">{first.name}</div>
+                                <div className="text-sm font-mono font-bold text-yellow-600 dark:text-yellow-400">
+                                    {Math.round(first.powerScore)} <span className="text-[10px] opacity-70">pts</span>
+                                </div>
+                                {/* 领奖台柱子 */}
+                                <div className="w-20 sm:w-24 h-32 bg-gradient-to-t from-yellow-100 to-white dark:from-yellow-900/30 dark:to-slate-700 rounded-t-lg mt-2 shadow-lg border-t border-yellow-200 dark:border-yellow-700/50 relative overflow-hidden">
+                                    <div className="absolute inset-0 bg-yellow-400/10"></div>
+                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-yellow-600/20 dark:text-yellow-400/20 font-black text-4xl">1</div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 🥉 第三名 (右侧) */}
+                        {third && (
+                            <div className="flex flex-col items-center group cursor-pointer" onClick={() => onPlayerClick(third)}>
+                                <div className="relative mb-3 transition-transform group-hover:-translate-y-1">
+                                    <Avatar name={third.name} src={third.avatar} size="lg" className="border-4 border-orange-300 shadow-lg" />
+                                    <div className="absolute -bottom-2 -right-1 bg-orange-300 text-orange-800 text-[10px] font-black px-1.5 rounded shadow-sm">3</div>
+                                </div>
+                                <div className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">{third.name}</div>
+                                <div className="text-xs font-mono text-slate-400">
+                                    {Math.round(third.powerScore)} <span className="text-[10px] opacity-70">pts</span>
+                                </div>
+                                {/* 领奖台柱子 */}
+                                <div className="w-16 sm:w-20 h-16 bg-gradient-to-t from-orange-100 to-white dark:from-orange-900/30 dark:to-slate-700 rounded-t-lg mt-2 shadow-inner border-t border-orange-200 dark:border-orange-800/50"></div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* 统计小卡片 */}
-                <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+                {/* === 数据卡片区 (占 5 列) === */}
+                <div className="lg:col-span-5 grid grid-cols-2 gap-4 content-start">
                     {[
-                        { l: '本赛季场次', v: statsData.seasonStats.totalGames + (selectedSeason === 'all' ? '' : ` / ${GAMES_PER_SEASON}`), i: 'hash', c: 'text-blue-500' },
-                        { l: '赛季总奖池', v: statsData.seasonStats.totalPot.toLocaleString(), i: 'database', c: 'text-emerald-500' },
-                        { l: '活跃玩家', v: statsData.seasonStats.activePlayers, i: 'users', c: 'text-orange-500' },
-                        { l: '单场最高分', v: `${statsData.highestSingle.score > -Infinity ? statsData.highestSingle.score : '-'} (${statsData.highestSingle.name})`, i: 'zap', c: 'text-yellow-500' }
+                        { 
+                            l: '总场次', 
+                            v: statsData.seasonStats.totalGames + (selectedSeason === 'all' ? '' : ` / ${GAMES_PER_SEASON}`), 
+                            i: 'hash', 
+                            c: 'text-blue-500',
+                            bg: 'bg-blue-50 dark:bg-blue-900/10' 
+                        },
+                        { 
+                            // ✅ 替换了之前的 "总奖池"
+                            l: '平均参赛人数', 
+                            v: avgPlayers, 
+                            i: 'users', 
+                            c: 'text-emerald-500',
+                            bg: 'bg-emerald-50 dark:bg-emerald-900/10',
+                            sub: '人/场' 
+                        },
+                        { 
+                            l: '活跃玩家', 
+                            v: statsData.seasonStats.activePlayers, 
+                            i: 'activity', 
+                            c: 'text-orange-500',
+                            bg: 'bg-orange-50 dark:bg-orange-900/10' 
+                        },
+                        { 
+                            l: '单场最高分', 
+                            v: statsData.highestSingle.score > -Infinity ? statsData.highestSingle.score : '-',
+                            sub: statsData.highestSingle.name,
+                            i: 'zap', 
+                            c: 'text-yellow-500',
+                            bg: 'bg-yellow-50 dark:bg-yellow-900/10' 
+                        }
                     ].map((item, idx) => (
-                        <div key={idx} className="glass-panel rounded-xl p-4 flex flex-col justify-center border border-slate-200 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                            <div className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center gap-1"><Icon name={item.i} className="w-3 h-3"/> {item.l}</div>
-                            <div className={`text-lg font-black ${item.c} font-mono truncate`}>{item.v}</div>
+                        <div key={idx} className={`rounded-xl p-4 flex flex-col justify-center border border-slate-100 dark:border-slate-800 ${item.bg} hover:scale-[1.02] transition-transform`}>
+                            <div className="text-[10px] uppercase font-bold text-slate-500/70 mb-1 flex items-center gap-1">
+                                <Icon name={item.i} className="w-3.5 h-3.5"/> {item.l}
+                            </div>
+                            <div className={`text-2xl font-black ${item.c} font-mono truncate tracking-tight`}>
+                                {item.v} <span className="text-xs text-slate-400 font-normal ml-1">{item.sub}</span>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -1693,9 +2029,9 @@ FILE PATH: src\components\tabs\NewGameForm.jsx
 ================================================
 import React, { useState, useEffect, useMemo } from 'react';
 import Icon from '../Icon';
-import { BASE_SCORES, CHIP_EXCHANGE_RATE } from '../../lib/utils'; // 注意路径 ../../
+import { BASE_SCORES, CHIP_EXCHANGE_RATE } from '../../lib/utils'; 
 
-const NewGameForm = ({ isAdmin, allPlayerNames, editingMatch, onSave, onCancelEdit }) => {
+const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, onSave, onCancelEdit }) => {
     // 内部状态
     const [gameDate, setGameDate] = useState(new Date().toISOString().slice(0, 10));
     const [roster, setRoster] = useState([]);
@@ -1710,8 +2046,16 @@ const NewGameForm = ({ isAdmin, allPlayerNames, editingMatch, onSave, onCancelEd
     const [buyInAmount, setBuyInAmount] = useState('');
     const [buyInSeller, setBuyInSeller] = useState('Official');
 
-    // 监听编辑模式
+    // 🔒 安全锁：防止组件刚加载时，空数据覆盖了本地缓存
+    const [hasLoaded, setHasLoaded] = useState(false);
+
+    // ==========================================
+    // 💾 功能 1: 自动保存/恢复草稿 (修复版)
+    // ==========================================
+    
+    // 1. 初始化加载 (只执行一次)
     useEffect(() => {
+        // 如果是编辑历史比赛模式，优先加载传入的比赛数据
         if (editingMatch) {
             setGameDate(editingMatch.date);
             setVotedMvp(editingMatch.votedMvp || '');
@@ -1728,17 +2072,85 @@ const NewGameForm = ({ isAdmin, allPlayerNames, editingMatch, onSave, onCancelEd
                 setFinalStacks(stacks);
                 alert("注意：正在编辑旧版本数据，流水已重置，请手动补全。");
             }
-        } else {
-            setRoster([]); setTransactions([]); setFinalStacks({}); setVotedMvp(''); setLuckyPlayer('');
-        }
-    }, [editingMatch]);
-
-    // 逻辑函数
-    const addPlayerToRoster = () => { 
-        if (newPlayerName && !roster.includes(newPlayerName)) { 
-            setRoster([...roster, newPlayerName]); 
-            setNewPlayerName(''); 
+            // 标记加载完成
+            setHasLoaded(true);
         } 
+        // 否则，是新游戏模式，尝试读取草稿
+        else {
+            const savedDraft = localStorage.getItem('match_draft');
+            if (savedDraft) {
+                try {
+                    const draft = JSON.parse(savedDraft);
+                    if (draft.gameDate) setGameDate(draft.gameDate);
+                    // 只有当草稿里真的有数据时才覆盖默认值
+                    if (draft.roster && draft.roster.length > 0) setRoster(draft.roster);
+                    if (draft.transactions) setTransactions(draft.transactions);
+                    if (draft.finalStacks) setFinalStacks(draft.finalStacks);
+                    if (draft.votedMvp) setVotedMvp(draft.votedMvp);
+                    if (draft.luckyPlayer) setLuckyPlayer(draft.luckyPlayer);
+                    console.log("✅ 草稿已恢复");
+                } catch (e) {
+                    console.error("❌ 草稿读取失败", e);
+                }
+            }
+            // 无论有没有草稿，都标记加载完成，允许后续的保存操作
+            setHasLoaded(true);
+        }
+    }, [editingMatch]); // 依赖 editingMatch，确保模式切换时重置
+
+    // 2. 自动保存 (加了锁)
+    useEffect(() => {
+        // 🛑 如果还没加载完 (hasLoaded 为 false)，绝对不要保存！
+        // 🛑 如果正在编辑历史比赛，也不要覆盖“新比赛”的草稿
+        if (!hasLoaded || editingMatch) return;
+
+        const draftData = {
+            gameDate,
+            roster,
+            transactions,
+            finalStacks,
+            votedMvp,
+            luckyPlayer
+        };
+        
+        // 只有当有一些数据的时候才保存，全是空就不存了（可选优化）
+        localStorage.setItem('match_draft', JSON.stringify(draftData));
+        // console.log("💾 草稿已自动保存");
+
+    }, [gameDate, roster, transactions, finalStacks, votedMvp, luckyPlayer, hasLoaded, editingMatch]);
+
+
+    // ==========================================
+    // 🧠 功能 2: 智能名字解析 (实名 -> 网名)
+    // ==========================================
+
+    const resolvePlayerName = (input) => {
+        const trimmedInput = input.trim();
+        if (!trimmedInput) return null;
+
+        const directMatch = allPlayerNames.find(n => n.toLowerCase() === trimmedInput.toLowerCase());
+        if (directMatch) return directMatch;
+
+        if (playerProfiles) {
+            const foundEntry = Object.entries(playerProfiles).find(([nickname, profile]) => {
+                return profile.realName && profile.realName.toLowerCase() === trimmedInput.toLowerCase();
+            });
+            if (foundEntry) return foundEntry[0]; 
+        }
+        return trimmedInput;
+    };
+
+    const addPlayerToRoster = () => { 
+        const resolvedName = resolvePlayerName(newPlayerName);
+        if (resolvedName) {
+            if (!roster.includes(resolvedName)) { 
+                setRoster([...roster, resolvedName]); 
+                setNewPlayerName(''); 
+            } else {
+                alert(`"${resolvedName}" 已经在列表里了`);
+                setNewPlayerName('');
+            }
+        }
     };
     
     const removePlayerFromRoster = (name) => { 
@@ -1783,11 +2195,13 @@ const NewGameForm = ({ isAdmin, allPlayerNames, editingMatch, onSave, onCancelEd
 
     const handleSaveGame = () => {
         if (roster.length < 2) return;
+        
         const totalNet = calculatedResults.reduce((sum, p) => sum + p.net, 0);
-        if (Math.abs(totalNet) > 0.1) {
+        if (Math.abs(totalNet) > 0.01) { 
             alert(`⚠️ 账目不平！\n\n当前净盈亏总和: ${totalNet.toFixed(2)}\n必须等于 0 才能保存。`);
             return;
         }
+
         const sorted = [...calculatedResults].sort((a, b) => b.net - a.net);
         const factor = sorted.length / 10;
         const results = sorted.map((p, i) => ({ 
@@ -1808,7 +2222,15 @@ const NewGameForm = ({ isAdmin, allPlayerNames, editingMatch, onSave, onCancelEd
             finalStacks 
         };
         
+        localStorage.removeItem('match_draft'); // ✅ 保存成功后，清除草稿
         onSave(matchData);
+        
+        // 重置本地状态
+        setRoster([]);
+        setTransactions([]);
+        setFinalStacks({});
+        setVotedMvp('');
+        setLuckyPlayer('');
     };
 
     if (!isAdmin) {
@@ -1835,18 +2257,24 @@ const NewGameForm = ({ isAdmin, allPlayerNames, editingMatch, onSave, onCancelEd
                         <input type="date" value={gameDate} onChange={e=>setGameDate(e.target.value)} className="input-pro w-full p-2.5 rounded-lg bg-white dark:bg-slate-900" />
                     </div>
                     <div className="md:col-span-2">
-                        <label className="text-[10px] uppercase font-bold text-slate-500 mb-2 block">添加玩家到本局</label>
+                        <label className="text-[10px] uppercase font-bold text-slate-500 mb-2 block">添加玩家</label>
                         <div className="flex gap-2">
                             <input 
                                 type="text" 
                                 list="player-suggestions" 
-                                placeholder="输入或选择玩家..." 
+                                placeholder="输入网名或实名..." 
                                 value={newPlayerName} 
                                 onChange={e=>setNewPlayerName(e.target.value)} 
                                 onKeyDown={e=>e.key==='Enter'&&addPlayerToRoster()} 
                                 className="input-pro flex-1 p-2.5 rounded-lg bg-white dark:bg-slate-900" 
                             />
-                            <datalist id="player-suggestions">{allPlayerNames.map(name => <option key={name} value={name} />)}</datalist>
+                            <datalist id="player-suggestions">
+                                {allPlayerNames.map(name => {
+                                    const realName = playerProfiles && playerProfiles[name]?.realName;
+                                    const displayLabel = realName ? `${name} (${realName})` : name;
+                                    return <option key={name} value={name} label={displayLabel} />;
+                                })}
+                            </datalist>
                             <button onClick={addPlayerToRoster} className="bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 text-white px-4 rounded-lg"><Icon name="plus" className="w-5 h-5"/></button>
                         </div>
                     </div>
@@ -2120,12 +2548,11 @@ export default Settings;
 ================================================
 FILE PATH: src\index.css
 ================================================
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* 下面接着粘贴你原来的 CSS 代码... */
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
     --bg-page: #f8fafc;
@@ -2309,11 +2736,37 @@ FILE PATH: src\lib\utils.js
 ================================================
 // src/lib/utils.js
 
-// ================= 常量定义 =================
-export const BASE_SCORES = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
-export const GAMES_PER_SEASON = 10;
-export const CHIP_EXCHANGE_RATE = 100;
-export const BADGE_THRESHOLD = 1600;
+// ==========================================
+// 🎛️ 勋章与游戏规则配置中心
+// ==========================================
+export const BADGE_CONFIG = {
+    // ⚡️ 神经刀：单场狂揽多少筹码？
+    NERVE_KNIFE_LIMIT: 2000, 
+
+    // 🤝 慈善家：单场输掉多少筹码算慈善？(填写正数，逻辑里会自动取负)
+    CHARITY_THRESHOLD: 200,  
+
+    // 📈 逆风翻盘：买入超过多少，最后还能赢钱？
+    COMEBACK_BUYIN_THRESHOLD: 2400,
+
+    // 👑 统治者：胜率门槛 (0.3 代表 30%)
+    RULER_WIN_RATE: 0.3,
+
+    // 🛡️ 老兵：至少打多少场？
+    VETERAN_GAMES: 10,
+
+    // 💔 意难平：拿多少次第二名？
+    SECOND_PLACE_COUNT: 3
+};
+
+// 比赛相关的常量（保持不变）
+export const GAMES_PER_SEASON = 10; // 一个赛季几场
+export const CHIP_EXCHANGE_RATE = 100; // 汇率
+export const BASE_SCORES = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]; // 排名分
+
+// 记得把下面这行导出加进去，或者确保 BADGE_CONFIG 被导出了
+// export { BADGE_CONFIG, ... }
+
 
 // ================= 工具函数 =================
 
