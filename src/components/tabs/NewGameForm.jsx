@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Icon from '../Icon';
-import { BASE_SCORES, CHIP_EXCHANGE_RATE } from '../../lib/utils'; // 注意路径 ../../
+import { BASE_SCORES, CHIP_EXCHANGE_RATE } from '../../lib/utils'; 
 
-const NewGameForm = ({ isAdmin, allPlayerNames, editingMatch, onSave, onCancelEdit }) => {
+const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, onSave, onCancelEdit }) => {
     // 内部状态
     const [gameDate, setGameDate] = useState(new Date().toISOString().slice(0, 10));
     const [roster, setRoster] = useState([]);
@@ -17,8 +17,16 @@ const NewGameForm = ({ isAdmin, allPlayerNames, editingMatch, onSave, onCancelEd
     const [buyInAmount, setBuyInAmount] = useState('');
     const [buyInSeller, setBuyInSeller] = useState('Official');
 
-    // 监听编辑模式
+    // 🔒 安全锁：防止组件刚加载时，空数据覆盖了本地缓存
+    const [hasLoaded, setHasLoaded] = useState(false);
+
+    // ==========================================
+    // 💾 功能 1: 自动保存/恢复草稿 (修复版)
+    // ==========================================
+    
+    // 1. 初始化加载 (只执行一次)
     useEffect(() => {
+        // 如果是编辑历史比赛模式，优先加载传入的比赛数据
         if (editingMatch) {
             setGameDate(editingMatch.date);
             setVotedMvp(editingMatch.votedMvp || '');
@@ -35,17 +43,85 @@ const NewGameForm = ({ isAdmin, allPlayerNames, editingMatch, onSave, onCancelEd
                 setFinalStacks(stacks);
                 alert("注意：正在编辑旧版本数据，流水已重置，请手动补全。");
             }
-        } else {
-            setRoster([]); setTransactions([]); setFinalStacks({}); setVotedMvp(''); setLuckyPlayer('');
-        }
-    }, [editingMatch]);
-
-    // 逻辑函数
-    const addPlayerToRoster = () => { 
-        if (newPlayerName && !roster.includes(newPlayerName)) { 
-            setRoster([...roster, newPlayerName]); 
-            setNewPlayerName(''); 
+            // 标记加载完成
+            setHasLoaded(true);
         } 
+        // 否则，是新游戏模式，尝试读取草稿
+        else {
+            const savedDraft = localStorage.getItem('match_draft');
+            if (savedDraft) {
+                try {
+                    const draft = JSON.parse(savedDraft);
+                    if (draft.gameDate) setGameDate(draft.gameDate);
+                    // 只有当草稿里真的有数据时才覆盖默认值
+                    if (draft.roster && draft.roster.length > 0) setRoster(draft.roster);
+                    if (draft.transactions) setTransactions(draft.transactions);
+                    if (draft.finalStacks) setFinalStacks(draft.finalStacks);
+                    if (draft.votedMvp) setVotedMvp(draft.votedMvp);
+                    if (draft.luckyPlayer) setLuckyPlayer(draft.luckyPlayer);
+                    console.log("✅ 草稿已恢复");
+                } catch (e) {
+                    console.error("❌ 草稿读取失败", e);
+                }
+            }
+            // 无论有没有草稿，都标记加载完成，允许后续的保存操作
+            setHasLoaded(true);
+        }
+    }, [editingMatch]); // 依赖 editingMatch，确保模式切换时重置
+
+    // 2. 自动保存 (加了锁)
+    useEffect(() => {
+        // 🛑 如果还没加载完 (hasLoaded 为 false)，绝对不要保存！
+        // 🛑 如果正在编辑历史比赛，也不要覆盖“新比赛”的草稿
+        if (!hasLoaded || editingMatch) return;
+
+        const draftData = {
+            gameDate,
+            roster,
+            transactions,
+            finalStacks,
+            votedMvp,
+            luckyPlayer
+        };
+        
+        // 只有当有一些数据的时候才保存，全是空就不存了（可选优化）
+        localStorage.setItem('match_draft', JSON.stringify(draftData));
+        // console.log("💾 草稿已自动保存");
+
+    }, [gameDate, roster, transactions, finalStacks, votedMvp, luckyPlayer, hasLoaded, editingMatch]);
+
+
+    // ==========================================
+    // 🧠 功能 2: 智能名字解析 (实名 -> 网名)
+    // ==========================================
+
+    const resolvePlayerName = (input) => {
+        const trimmedInput = input.trim();
+        if (!trimmedInput) return null;
+
+        const directMatch = allPlayerNames.find(n => n.toLowerCase() === trimmedInput.toLowerCase());
+        if (directMatch) return directMatch;
+
+        if (playerProfiles) {
+            const foundEntry = Object.entries(playerProfiles).find(([nickname, profile]) => {
+                return profile.realName && profile.realName.toLowerCase() === trimmedInput.toLowerCase();
+            });
+            if (foundEntry) return foundEntry[0]; 
+        }
+        return trimmedInput;
+    };
+
+    const addPlayerToRoster = () => { 
+        const resolvedName = resolvePlayerName(newPlayerName);
+        if (resolvedName) {
+            if (!roster.includes(resolvedName)) { 
+                setRoster([...roster, resolvedName]); 
+                setNewPlayerName(''); 
+            } else {
+                alert(`"${resolvedName}" 已经在列表里了`);
+                setNewPlayerName('');
+            }
+        }
     };
     
     const removePlayerFromRoster = (name) => { 
@@ -90,11 +166,13 @@ const NewGameForm = ({ isAdmin, allPlayerNames, editingMatch, onSave, onCancelEd
 
     const handleSaveGame = () => {
         if (roster.length < 2) return;
+        
         const totalNet = calculatedResults.reduce((sum, p) => sum + p.net, 0);
-        if (Math.abs(totalNet) > 0.1) {
+        if (Math.abs(totalNet) > 0.01) { 
             alert(`⚠️ 账目不平！\n\n当前净盈亏总和: ${totalNet.toFixed(2)}\n必须等于 0 才能保存。`);
             return;
         }
+
         const sorted = [...calculatedResults].sort((a, b) => b.net - a.net);
         const factor = sorted.length / 10;
         const results = sorted.map((p, i) => ({ 
@@ -115,7 +193,15 @@ const NewGameForm = ({ isAdmin, allPlayerNames, editingMatch, onSave, onCancelEd
             finalStacks 
         };
         
+        localStorage.removeItem('match_draft'); // ✅ 保存成功后，清除草稿
         onSave(matchData);
+        
+        // 重置本地状态
+        setRoster([]);
+        setTransactions([]);
+        setFinalStacks({});
+        setVotedMvp('');
+        setLuckyPlayer('');
     };
 
     if (!isAdmin) {
@@ -142,18 +228,24 @@ const NewGameForm = ({ isAdmin, allPlayerNames, editingMatch, onSave, onCancelEd
                         <input type="date" value={gameDate} onChange={e=>setGameDate(e.target.value)} className="input-pro w-full p-2.5 rounded-lg bg-white dark:bg-slate-900" />
                     </div>
                     <div className="md:col-span-2">
-                        <label className="text-[10px] uppercase font-bold text-slate-500 mb-2 block">添加玩家到本局</label>
+                        <label className="text-[10px] uppercase font-bold text-slate-500 mb-2 block">添加玩家</label>
                         <div className="flex gap-2">
                             <input 
                                 type="text" 
                                 list="player-suggestions" 
-                                placeholder="输入或选择玩家..." 
+                                placeholder="输入网名或实名..." 
                                 value={newPlayerName} 
                                 onChange={e=>setNewPlayerName(e.target.value)} 
                                 onKeyDown={e=>e.key==='Enter'&&addPlayerToRoster()} 
                                 className="input-pro flex-1 p-2.5 rounded-lg bg-white dark:bg-slate-900" 
                             />
-                            <datalist id="player-suggestions">{allPlayerNames.map(name => <option key={name} value={name} />)}</datalist>
+                            <datalist id="player-suggestions">
+                                {allPlayerNames.map(name => {
+                                    const realName = playerProfiles && playerProfiles[name]?.realName;
+                                    const displayLabel = realName ? `${name} (${realName})` : name;
+                                    return <option key={name} value={name} label={displayLabel} />;
+                                })}
+                            </datalist>
                             <button onClick={addPlayerToRoster} className="bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 text-white px-4 rounded-lg"><Icon name="plus" className="w-5 h-5"/></button>
                         </div>
                     </div>

@@ -1,10 +1,36 @@
 // src/lib/utils.js
 
-// ================= 常量定义 =================
-export const BASE_SCORES = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
-export const GAMES_PER_SEASON = 10;
-export const CHIP_EXCHANGE_RATE = 100;
-export const BADGE_THRESHOLD = 1600;
+// ==========================================
+// 🎛️ 勋章与游戏规则配置中心
+// ==========================================
+export const BADGE_CONFIG = {
+    // ⚡️ 神经刀：单场狂揽多少筹码？
+    NERVE_KNIFE_LIMIT: 2000, 
+
+    // 🤝 慈善家：单场输掉多少筹码算慈善？(填写正数，逻辑里会自动取负)
+    CHARITY_THRESHOLD: 200,  
+
+    // 📈 逆风翻盘：买入超过多少，最后还能赢钱？
+    COMEBACK_BUYIN_THRESHOLD: 2400,
+
+    // 👑 统治者：胜率门槛 (0.3 代表 30%)
+    RULER_WIN_RATE: 0.3,
+
+    // 🛡️ 老兵：至少打多少场？
+    VETERAN_GAMES: 10,
+
+    // 💔 意难平：拿多少次第二名？
+    SECOND_PLACE_COUNT: 3
+};
+
+// 比赛相关的常量（保持不变）
+export const GAMES_PER_SEASON = 10; // 一个赛季几场
+export const CHIP_EXCHANGE_RATE = 1; // 汇率
+export const BASE_SCORES = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]; // 排名分
+
+// 记得把下面这行导出加进去，或者确保 BADGE_CONFIG 被导出了
+// export { BADGE_CONFIG, ... }
+
 
 // ================= 工具函数 =================
 

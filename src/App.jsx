@@ -321,7 +321,6 @@ const App = () => {
 
             // 特殊保护：如果是赛季刚开始(比如只打了1场)，全员出勤率都是100%，
             // 为了防止第一场赢了就直接封神，我们可以保留一个“最小绝对场次”的限制
-            // 但既然你希望赛季初也能体现排名，我们可以不加这个限制，
             // 或者仅对 只打1场的情况 做极其微小的限制。
             // 目前这个纯比例逻辑在 Game 1 时：
             // 赢家 (1/1 = 100%) -> 系数 1.05 -> 排名第一 (合理)
@@ -593,6 +592,7 @@ const App = () => {
                     <NewGameFormTab 
                         isAdmin={isAdmin}
                         allPlayerNames={allPlayerNames}
+                        playerProfiles={playerProfiles}  // <--- ✅ 新增这一行！
                         editingMatch={matchHistory.find(m => m.id === editingMatchId)}
                         onSave={handleSaveGame}
                         onCancelEdit={() => setEditingMatchId(null)}
