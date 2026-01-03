@@ -57,7 +57,7 @@ const Dashboard = ({
                     <div className="text-center mb-auto">
                         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Current Leaderboard</h3>
                         <div className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-1">
-                            {selectedSeason === 'all' ? '总积分榜前三' : `S${selectedSeason.slice(1)} 赛季三巨头`}
+                            {selectedSeason === 'all' ? '战力榜前三' : `S${selectedSeason.slice(1)} 赛季三巨头`}
                         </div>
                     </div>
 

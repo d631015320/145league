@@ -25,7 +25,7 @@ export const BADGE_CONFIG = {
 
 // 比赛相关的常量（保持不变）
 export const GAMES_PER_SEASON = 10; // 一个赛季几场
-export const CHIP_EXCHANGE_RATE = 1; // 汇率
+export const CHIP_EXCHANGE_RATE = 100; // 汇率
 export const BASE_SCORES = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]; // 排名分
 
 // 记得把下面这行导出加进去，或者确保 BADGE_CONFIG 被导出了
