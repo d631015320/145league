@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import Icon from '../Icon';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import Icon from '../common/Icon';
 import { BASE_SCORES, CHIP_EXCHANGE_RATE } from '../../lib/utils'; 
 
 const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, onSave, onCancelEdit }) => {
@@ -94,7 +94,7 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
         const directMatch = allPlayerNames.find(n => n.toLowerCase() === trimmedInput.toLowerCase());
         if (directMatch) return directMatch;
         if (playerProfiles) {
-            const foundEntry = Object.entries(playerProfiles).find(([nickname, profile]) => {
+            const foundEntry = Object.entries(playerProfiles).find(([_nickname, profile]) => {
                 return profile.realName && profile.realName.toLowerCase() === trimmedInput.toLowerCase();
             });
             if (foundEntry) return foundEntry[0]; 
@@ -204,31 +204,50 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
                 {/* 顶部输入：移动端改用 flex-col 堆叠 */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                     <div className="md:col-span-1">
-                        <label className="text-[10px] uppercase font-bold text-slate-500 mb-2 block">比赛日期</label>
-                        <input type="date" value={gameDate} onChange={e=>setGameDate(e.target.value)} className="input-pro w-full p-2.5 rounded-lg bg-white dark:bg-slate-900" />
+                        <label htmlFor="game-date" className="text-[10px] uppercase font-bold text-slate-500 mb-2 block">比赛日期</label>
+                        <input 
+                            id="game-date"
+                            type="date" 
+                            value={gameDate} 
+                            onChange={e=>setGameDate(e.target.value)} 
+                            aria-label="选择比赛日期"
+                            className="input-pro w-full p-2.5 rounded-lg bg-white dark:bg-slate-900" 
+                        />
                     </div>
                     <div className="md:col-span-2 relative" ref={suggestionRef}>
-                        <label className="text-[10px] uppercase font-bold text-slate-500 mb-2 block">添加玩家 (点选或搜索)</label>
+                        <label htmlFor="add-player-input" className="text-[10px] uppercase font-bold text-slate-500 mb-2 block">添加玩家 (点选或搜索)</label>
                         <div className="flex gap-2">
                             <div className="relative flex-1">
                                 <input 
+                                    id="add-player-input"
                                     type="text" 
                                     placeholder="输入网名或实名..." 
                                     value={newPlayerName} 
                                     onFocus={() => setShowSuggestions(true)}
                                     onChange={e=>{ setNewPlayerName(e.target.value); setShowSuggestions(true); }} 
                                     onKeyDown={e=>e.key==='Enter'&&addPlayerToRoster()} 
+                                    aria-label="输入玩家名称"
+                                    aria-autocomplete="list"
+                                    aria-expanded={showSuggestions}
+                                    aria-controls="player-suggestions"
                                     className="input-pro w-full p-2.5 rounded-lg bg-white dark:bg-slate-900" 
                                 />
                                 {/* 🔥🔥🔥 自定义下拉菜单 (完美适配手机) 🔥🔥🔥 */}
                                 {showSuggestions && (
-                                    <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-60 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl">
+                                    <div 
+                                        id="player-suggestions"
+                                        role="listbox"
+                                        aria-label="玩家建议列表"
+                                        className="absolute z-50 left-0 right-0 top-full mt-1 max-h-60 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl"
+                                    >
                                         {filteredSuggestions.length > 0 ? (
                                             filteredSuggestions.map(name => {
                                                 const realName = playerProfiles && playerProfiles[name]?.realName;
                                                 return (
                                                     <div 
                                                         key={name}
+                                                        role="option"
+                                                        aria-selected={false}
                                                         onClick={() => addPlayerToRoster(name)}
                                                         className="px-4 py-3 text-sm border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer flex justify-between items-center"
                                                     >
@@ -243,7 +262,13 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
                                     </div>
                                 )}
                             </div>
-                            <button onClick={() => addPlayerToRoster()} className="bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 text-white px-4 rounded-lg flex-shrink-0"><Icon name="plus" className="w-5 h-5"/></button>
+                            <button 
+                                onClick={() => addPlayerToRoster()} 
+                                aria-label="添加玩家到名单"
+                                className="bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 text-white px-4 rounded-lg flex-shrink-0"
+                            >
+                                <Icon name="plus" className="w-5 h-5" aria-hidden="true"/>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -256,26 +281,64 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
                             {/* 左侧：买入记录 - 手机端优化布局 */}
                             <div className="space-y-4">
                                 <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2"><Icon name="shopping-cart" className="w-4 h-4"/> 买入/交易记录</h3>
-                                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 flex flex-col sm:flex-row flex-wrap gap-2 sm:items-end">
+                            <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 flex flex-col sm:flex-row flex-wrap gap-2 sm:items-end">
                                     <div className="flex-1 min-w-[120px]">
-                                        <span className="text-[10px] text-slate-400 block mb-1">买家</span>
-                                        <select value={buyInBuyer} onChange={e=>setBuyInBuyer(e.target.value)} className="input-pro w-full p-2 rounded text-sm bg-white dark:bg-slate-900"><option value="">选择玩家</option>{roster.map(p=><option key={p} value={p}>{p}</option>)}</select>
+                                        <label htmlFor="buyin-buyer" className="text-[10px] text-slate-400 block mb-1">买家</label>
+                                        <select 
+                                            id="buyin-buyer"
+                                            value={buyInBuyer} 
+                                            onChange={e=>setBuyInBuyer(e.target.value)} 
+                                            aria-label="选择买入玩家"
+                                            className="input-pro w-full p-2 rounded text-sm bg-white dark:bg-slate-900"
+                                        >
+                                            <option value="">选择玩家</option>
+                                            {roster.map(p=><option key={p} value={p}>{p}</option>)}
+                                        </select>
                                     </div>
                                     <div className="w-full sm:w-24">
-                                        <span className="text-[10px] text-slate-400 block mb-1">金额</span>
-                                        <input type="number" value={buyInAmount} onChange={e=>setBuyInAmount(e.target.value)} className="input-pro w-full p-2 rounded text-sm bg-white dark:bg-slate-900" placeholder="0" />
+                                        <label htmlFor="buyin-amount" className="text-[10px] text-slate-400 block mb-1">金额</label>
+                                        <input 
+                                            id="buyin-amount"
+                                            type="number" 
+                                            value={buyInAmount} 
+                                            onChange={e=>setBuyInAmount(e.target.value)} 
+                                            aria-label="输入买入金额"
+                                            className="input-pro w-full p-2 rounded text-sm bg-white dark:bg-slate-900" 
+                                            placeholder="0" 
+                                        />
                                     </div>
                                     <div className="flex-1 min-w-[120px]">
-                                        <span className="text-[10px] text-slate-400 block mb-1">卖家</span>
-                                        <select value={buyInSeller} onChange={e=>setBuyInSeller(e.target.value)} className="input-pro w-full p-2 rounded text-sm bg-white dark:bg-slate-900"><option value="Official">🏛️ 官方</option>{roster.filter(p=>p!==buyInBuyer).map(p=><option key={p} value={p}>👤 {p}</option>)}</select>
+                                        <label htmlFor="buyin-seller" className="text-[10px] text-slate-400 block mb-1">卖家</label>
+                                        <select 
+                                            id="buyin-seller"
+                                            value={buyInSeller} 
+                                            onChange={e=>setBuyInSeller(e.target.value)} 
+                                            aria-label="选择卖出玩家"
+                                            className="input-pro w-full p-2 rounded text-sm bg-white dark:bg-slate-900"
+                                        >
+                                            <option value="Official">🏛️ 官方</option>
+                                            {roster.filter(p=>p!==buyInBuyer).map(p=><option key={p} value={p}>👤 {p}</option>)}
+                                        </select>
                                     </div>
-                                    <button onClick={addTransaction} className="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded w-full sm:w-10 h-[38px] flex items-center justify-center mt-2 sm:mt-0"><Icon name="check" className="w-5 h-5"/></button>
+                                    <button 
+                                        onClick={addTransaction} 
+                                        aria-label="确认添加交易记录"
+                                        className="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded w-full sm:w-10 h-[38px] flex items-center justify-center mt-2 sm:mt-0"
+                                    >
+                                        <Icon name="check" className="w-5 h-5" aria-hidden="true"/>
+                                    </button>
                                 </div>
-                                <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
+                                <div className="max-h-48 overflow-y-auto space-y-2 pr-2" role="list" aria-label="交易记录列表">
                                     {transactions.map(t => (
-                                        <div key={t.id} className="flex justify-between items-center text-xs bg-white dark:bg-slate-900 p-2 rounded border border-slate-100 dark:border-slate-800 animate-slide-up">
+                                        <div key={t.id} role="listitem" className="flex justify-between items-center text-xs bg-white dark:bg-slate-900 p-2 rounded border border-slate-100 dark:border-slate-800 animate-slide-up">
                                             <div className="flex items-center gap-2 flex-wrap"><span className="text-slate-400 font-mono">{t.time}</span><span className="font-bold text-slate-700 dark:text-slate-200">{t.buyer}</span><span className="text-slate-400">买入</span><span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">{t.amount}</span><span className="text-slate-400">自</span><span className={t.seller==='Official'?'text-blue-500':'text-slate-700 dark:text-slate-200'}>{t.seller==='Official'?'官方':t.seller}</span></div>
-                                            <button onClick={()=>deleteTransaction(t.id)} className="text-slate-400 hover:text-red-500 p-1"><Icon name="trash-2" className="w-4 h-4"/></button>
+                                            <button 
+                                                onClick={()=>deleteTransaction(t.id)} 
+                                                aria-label={`删除 ${t.buyer} 买入 ${t.amount} 的交易记录`}
+                                                className="text-slate-400 hover:text-red-500 p-1"
+                                            >
+                                                <Icon name="trash-2" className="w-4 h-4" aria-hidden="true"/>
+                                            </button>
                                         </div>
                                     ))}
                                     {transactions.length===0 && <div className="text-center text-slate-400 text-xs py-4">暂无交易记录</div>}
@@ -309,17 +372,40 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
                         {/* 底部：MVP 和保存 */}
                         <div className="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-4 border border-slate-200 dark:border-slate-700/50">
                             <div>
-                                <label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block">MVP 票选</label>
-                                <select value={votedMvp} onChange={e=>setVotedMvp(e.target.value)} className="input-pro w-full p-2 rounded bg-white dark:bg-slate-900"><option value="">- 无 -</option>{roster.map(p=><option key={p} value={p}>{p}</option>)}</select>
+                                <label htmlFor="mvp-select" className="text-[10px] uppercase font-bold text-slate-500 mb-1 block">MVP 票选</label>
+                                <select 
+                                    id="mvp-select"
+                                    value={votedMvp} 
+                                    onChange={e=>setVotedMvp(e.target.value)} 
+                                    aria-label="选择本场MVP"
+                                    className="input-pro w-full p-2 rounded bg-white dark:bg-slate-900"
+                                >
+                                    <option value="">- 无 -</option>
+                                    {roster.map(p=><option key={p} value={p}>{p}</option>)}
+                                </select>
                             </div>
                             <div>
-                                <label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block">运气王</label>
-                                <select value={luckyPlayer} onChange={e=>setLuckyPlayer(e.target.value)} className="input-pro w-full p-2 rounded bg-white dark:bg-slate-900"><option value="">- 无 -</option>{roster.map(p=><option key={p} value={p}>{p}</option>)}</select>
+                                <label htmlFor="lucky-select" className="text-[10px] uppercase font-bold text-slate-500 mb-1 block">运气王</label>
+                                <select 
+                                    id="lucky-select"
+                                    value={luckyPlayer} 
+                                    onChange={e=>setLuckyPlayer(e.target.value)} 
+                                    aria-label="选择本场运气王"
+                                    className="input-pro w-full p-2 rounded bg-white dark:bg-slate-900"
+                                >
+                                    <option value="">- 无 -</option>
+                                    {roster.map(p=><option key={p} value={p}>{p}</option>)}
+                                </select>
                             </div>
                         </div>
 
-                        <button onClick={handleSaveGame} disabled={roster.length < 2} className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex justify-center items-center gap-2">
-                            <Icon name="save" className="w-5 h-5"/> {editingMatch ? "更新比赛记录" : "结算并保存"}
+                        <button 
+                            onClick={handleSaveGame} 
+                            disabled={roster.length < 2} 
+                            aria-label={editingMatch ? "更新比赛记录" : "结算并保存比赛"}
+                            className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex justify-center items-center gap-2"
+                        >
+                            <Icon name="save" className="w-5 h-5" aria-hidden="true"/> {editingMatch ? "更新比赛记录" : "结算并保存"}
                         </button>
                     </>
                 )}

@@ -1,6 +1,6 @@
-import React from 'react';
-import Icon from '../Icon';
-import Avatar from '../Avatar';
+import { memo } from 'react';
+import Icon from '../common/Icon';
+import Avatar from '../common/Avatar';
 import Sparkline from '../../charts/Sparkline';
 
 const Leaderboard = ({ 
@@ -23,6 +23,32 @@ const Leaderboard = ({
     GAMES_PER_SEASON
 }) => {
     const isSorted = (k) => sortConfig.key === k;
+    const getSortIcon = (k) => {
+        if (!isSorted(k)) return <Icon name="chevrons-up-down" className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />;
+        return sortConfig.direction === 'desc' 
+            ? <Icon name="chevron-down" className="w-3 h-3" />
+            : <Icon name="chevron-up" className="w-3 h-3" />;
+    };
+
+    // 奖牌图标组件
+    const MedalIcon = ({ rank }) => {
+        if (rank === 0) return (
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-300 to-yellow-500 flex items-center justify-center shadow-md shadow-yellow-400/30">
+                <Icon name="crown" className="w-4 h-4 text-yellow-900 fill-current" />
+            </div>
+        );
+        if (rank === 1) return (
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-slate-200 to-slate-400 flex items-center justify-center shadow-md shadow-slate-400/30">
+                <span className="text-xs font-black text-slate-700">2</span>
+            </div>
+        );
+        if (rank === 2) return (
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-300 to-orange-500 flex items-center justify-center shadow-md shadow-orange-400/30">
+                <span className="text-xs font-black text-orange-900">3</span>
+            </div>
+        );
+        return null;
+    };
 
     // 筛选数据
     const filteredData = data.filter(p => {
@@ -31,15 +57,27 @@ const Leaderboard = ({
         return matchesSearch && matchesSelection;
     });
 
+    // 可排序表头样式
+    const sortableHeaderClass = (k, align = 'right') => `
+        px-4 py-3 ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'}
+        cursor-pointer select-none group transition-colors whitespace-nowrap
+        hover:bg-slate-100 dark:hover:bg-slate-800/50
+        border-b border-slate-200 dark:border-slate-800
+        ${isSorted(k) ? (k === 'powerScore' ? 'text-purple-600 dark:text-purple-400 bg-purple-50/50 dark:bg-purple-900/10' : 'text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10') : ''}
+    `;
+
     return (
         <div className="glass-panel rounded-2xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-700/50">
-            {/* 顶部工具栏 - 响应式堆叠 */}
-            <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50 dark:bg-slate-900/50">
-                <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
-                    <div className="relative min-w-[180px]">
+            {/* 精简工具栏 */}
+            <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="flex flex-wrap gap-3">
+                    <div className="relative min-w-[160px]">
+                        <label htmlFor="season-select-leaderboard" className="sr-only">选择赛季</label>
                         <select 
+                            id="season-select-leaderboard"
                             value={selectedSeason} 
                             onChange={e => onSeasonChange(e.target.value)} 
+                            aria-label="选择赛季筛选排行榜"
                             className="input-pro w-full pl-3 pr-8 py-2 rounded-lg text-sm bg-white dark:bg-slate-800/50 font-bold appearance-none cursor-pointer"
                         >
                             <option value="all">🏆 全赛季总榜</option>
@@ -47,43 +85,76 @@ const Leaderboard = ({
                                 const sNum = s.slice(1);
                                 const start = (sNum - 1) * GAMES_PER_SEASON + 1;
                                 const end = sNum * GAMES_PER_SEASON;
-                                return <option key={s} value={s}>🏁 第 {sNum} 赛季 (G{start}-{end})</option>;
+                                return <option key={s} value={s}>🏁 S{sNum} (G{start}-{end})</option>;
                             })}
                         </select>
-                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500"><Icon name="chevron-down" className="w-4 h-4"/></div>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500" aria-hidden="true">
+                            <Icon name="chevron-down" className="w-4 h-4"/>
+                        </div>
                     </div>
                     
-                    <div className="relative w-full sm:w-64 group">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Icon name="search" className="h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors"/></div>
-                        <input type="text" placeholder="搜索 玩家 / 数据..." value={searchTerm} onChange={(e) => onSearchChange(e.target.value)} className="input-pro w-full pl-10 pr-4 py-2 rounded-lg text-sm bg-white dark:bg-slate-800/50" />
+                    <div className="relative w-56 group">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" aria-hidden="true">
+                            <Icon name="search" className="h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors"/>
+                        </div>
+                        <label htmlFor="player-search" className="sr-only">搜索玩家</label>
+                        <input 
+                            id="player-search"
+                            type="text" 
+                            placeholder="搜索玩家..." 
+                            value={searchTerm} 
+                            onChange={(e) => onSearchChange(e.target.value)} 
+                            aria-label="搜索玩家名称"
+                            className="input-pro w-full pl-10 pr-4 py-2 rounded-lg text-sm bg-white dark:bg-slate-800/50" 
+                        />
                     </div>
                 </div>
-                
-                {/* 排序按钮组 - 手机端支持横向滑动 */}
-                <div className="flex gap-2 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
-                    {[{k:'powerScore',l:'战力',c:'purple'}, {k:'avgScore',l:'场均分',c:'blue'}, {k:'avgChips',l:'场均筹码',c:'teal'}, {k:'totalScore',l:'总分',c:'emerald'}, {k:'totalChips',l:'总筹码',c:'red'}, {k:'wins',l:'吃鸡',c:'yellow'}, {k:'goldContent',l:'含金量',c:'orange'}, {k:'votedMvpCount',l:'MVP',c:'indigo'}, {k:'luckyCount',l:'运气',c:'pink'}].map(item => (
-                        <button key={item.k} onClick={() => onSort(item.k)} className={`px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider border whitespace-nowrap transition-all ${isSorted(item.k) ? `bg-${item.c}-50 dark:bg-${item.c}-500/10 border-${item.c}-500 text-${item.c}-600 dark:text-${item.c}-400` : 'bg-white dark:bg-transparent border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-400 dark:hover:border-slate-500'}`}>
-                            {item.l} {isSorted(item.k) ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
-                        </button>
-                    ))}
-                    <button onClick={toggleSelectionMode} className={`p-1.5 rounded border bg-white dark:bg-transparent transition-colors flex-shrink-0 ${isSelectionMode ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-slate-200 dark:border-slate-700 text-slate-400'}`}><Icon name="list-checks" className="w-5 h-5"/></button>
-                </div>
+
+                <button 
+                    onClick={toggleSelectionMode} 
+                    aria-label={isSelectionMode ? '退出多选模式' : '进入多选模式'}
+                    aria-pressed={isSelectionMode}
+                    className={`p-2 rounded-lg border transition-colors ${isSelectionMode 
+                        ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-500 text-indigo-600 dark:text-indigo-400' 
+                        : 'bg-white dark:bg-transparent border-slate-200 dark:border-slate-700 text-slate-400 hover:border-slate-400'}`}
+                    title="多选模式"
+                >
+                    <Icon name="list-checks" className="w-4 h-4" aria-hidden="true"/>
+                </button>
             </div>
 
             {/* 选择模式工具条 */}
-            {isSelectionMode && (<div className="bg-indigo-50 dark:bg-indigo-900/20 px-4 py-2 flex justify-between items-center text-xs text-indigo-600 dark:text-indigo-300 border-b border-indigo-100 dark:border-indigo-500/20"><span className="font-bold">已选: {selectedPlayerNames.size}</span><div className="flex gap-3"><button onClick={() => setShowSelectedOnly(!showSelectedOnly)} className="hover:underline">{showSelectedOnly ? '显示全部' : '仅看已选'}</button><button onClick={onClearSelection} className="hover:underline">清空</button></div></div>)}
+            {isSelectionMode && (
+                <div className="bg-indigo-50 dark:bg-indigo-900/20 px-4 py-2 flex justify-between items-center text-xs text-indigo-600 dark:text-indigo-300 border-b border-indigo-100 dark:border-indigo-500/20" role="toolbar" aria-label="多选模式工具栏">
+                    <span className="font-bold" aria-live="polite">已选: {selectedPlayerNames.size}</span>
+                    <div className="flex gap-3">
+                        <button 
+                            onClick={() => setShowSelectedOnly(!showSelectedOnly)} 
+                            aria-pressed={showSelectedOnly}
+                            aria-label={showSelectedOnly ? '显示全部玩家' : '仅显示已选玩家'}
+                            className="hover:underline"
+                        >
+                            {showSelectedOnly ? '显示全部' : '仅看已选'}
+                        </button>
+                        <button 
+                            onClick={onClearSelection} 
+                            aria-label="清空所有选择"
+                            className="hover:underline"
+                        >
+                            清空
+                        </button>
+                    </div>
+                </div>
+            )}
 
-            {/* 🔥🔥🔥 核心升级：移动端卡片视图 vs 桌面端表格视图 🔥🔥🔥 */}
-            
-            {/* 1. 移动端卡片 (md:hidden) */}
+            {/* 移动端卡片视图 */}
             <div className="block md:hidden bg-slate-50 dark:bg-[#0b0e14]">
                 {filteredData.map((p, idx) => (
                     <div 
                         key={p.name} 
                         onClick={() => isSelectionMode ? togglePlayerSelection(p.name) : onPlayerClick(p)} 
-                        className={`p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-4 active:bg-slate-100 dark:active:bg-slate-800/50 transition-colors relative ${selectedPlayerNames.has(p.name) ? 'bg-indigo-50 dark:bg-indigo-900/10' : ''}`}
+                        className={`p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-4 active:bg-slate-100 dark:active:bg-slate-800/50 transition-colors ${selectedPlayerNames.has(p.name) ? 'bg-indigo-50 dark:bg-indigo-900/10' : ''}`}
                     >
-                        {/* 排名与头像 */}
                         <div className="flex flex-col items-center gap-1 min-w-[3rem]">
                             {isSelectionMode ? 
                                 <input type="checkbox" checked={selectedPlayerNames.has(p.name)} readOnly className="accent-indigo-500 w-5 h-5" /> : 
@@ -91,22 +162,19 @@ const Leaderboard = ({
                             }
                             <Avatar name={p.name} src={p.avatar?.avatar || p.avatar} size="md" bordered={false} className="shadow-sm" />
                         </div>
-
-                        {/* 核心数据区 */}
                         <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-start mb-1">
                                 <span className="font-bold text-slate-800 dark:text-white truncate">{p.name}</span>
-                                <span className="font-mono font-bold text-purple-600 dark:text-purple-400 text-lg">{Math.round(p.powerScore)}</span>
+                                <span className="font-mono font-bold text-purple-600 dark:text-purple-400 text-lg tabular-nums">{Math.round(p.powerScore)}</span>
                             </div>
-                            
                             <div className="grid grid-cols-3 gap-2 text-xs">
                                 <div>
                                     <div className="text-[10px] text-slate-400 uppercase">场均分</div>
-                                    <div className="font-bold text-blue-600 dark:text-blue-400">{p.avgScore}</div>
+                                    <div className="font-bold text-blue-600 dark:text-blue-400 tabular-nums">{p.avgScore}</div>
                                 </div>
                                 <div>
                                     <div className="text-[10px] text-slate-400 uppercase">总筹码</div>
-                                    <div className={`font-bold font-mono ${p.totalChips>=0?'text-red-500':'text-emerald-500'}`}>{p.totalChips>0?'+':''}{p.totalChips}</div>
+                                    <div className={`font-bold font-mono tabular-nums ${p.totalChips>=0?'text-teal-500':'text-slate-400'}`}>{p.totalChips>0?'+':''}{p.totalChips}</div>
                                 </div>
                                 <div>
                                     <div className="text-[10px] text-slate-400 uppercase">吃鸡</div>
@@ -114,47 +182,117 @@ const Leaderboard = ({
                                 </div>
                             </div>
                         </div>
-
-                        {/* 右箭头 */}
                         <Icon name="chevron-right" className="w-4 h-4 text-slate-300 flex-shrink-0" />
                     </div>
                 ))}
             </div>
 
-            {/* 2. 桌面端表格 (hidden md:block) - 保持原有表格布局不变 */}
+            {/* 桌面端表格 - 优化版 */}
             <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                    <thead className="bg-slate-50 dark:bg-[#0f141a] text-slate-500 text-[10px] uppercase font-bold tracking-widest sticky top-0 z-20">
+                <table className="w-full border-collapse" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    <thead className="bg-slate-50 dark:bg-[#0f141a] text-slate-500 text-[11px] uppercase font-bold tracking-wider sticky top-0 z-20">
                         <tr>
-                            <th className="p-4 w-12 text-center sticky-col border-b border-slate-200 dark:border-slate-800 shadow-[1px_0_0_0_rgba(0,0,0,0.05)] dark:shadow-[1px_0_0_0_rgba(255,255,255,0.05)]">#</th>
-                            <th className="p-4 w-48 sticky-col left-12 border-b border-slate-200 dark:border-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">玩家</th>
-                            <th className={`p-4 text-right cursor-pointer hover:text-slate-800 dark:hover:text-white border-b border-slate-200 dark:border-slate-800 ${isSorted('powerScore') ? 'text-purple-600 dark:text-purple-400 bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('powerScore')}>综合评分</th>
-                            <th className="p-4 w-24 text-center border-b border-slate-200 dark:border-slate-800">近期状态</th>
-                            <th className={`p-4 text-right cursor-pointer hover:text-slate-800 dark:hover:text-white border-b border-slate-200 dark:border-slate-800 ${isSorted('avgScore') ? 'text-blue-600 dark:text-blue-400 bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('avgScore')}>场均分</th>
-                            <th className={`p-4 text-right cursor-pointer hover:text-slate-800 dark:hover:text-white border-b border-slate-200 dark:border-slate-800 ${isSorted('avgChips') ? 'text-teal-600 dark:text-teal-400 bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('avgChips')}>场均筹码</th>
-                            <th className={`p-4 text-right cursor-pointer hover:text-slate-800 dark:hover:text-white border-b border-slate-200 dark:border-slate-800 ${isSorted('totalScore') ? 'text-emerald-600 dark:text-emerald-400 bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('totalScore')}>总积分</th>
-                            <th className={`p-4 text-right cursor-pointer hover:text-slate-800 dark:hover:text-white border-b border-slate-200 dark:border-slate-800 ${isSorted('totalChips') ? 'text-red-600 dark:text-red-400 bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('totalChips')}>总筹码</th>
-                            <th className={`p-4 text-center cursor-pointer hover:text-slate-800 dark:hover:text-white border-b border-slate-200 dark:border-slate-800 ${isSorted('wins') ? 'text-yellow-600 dark:text-yellow-400 bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('wins')}>吃鸡数</th>
-                            <th className={`p-4 text-right cursor-pointer hover:text-slate-800 dark:hover:text-white border-b border-slate-200 dark:border-slate-800 ${isSorted('goldContent') ? 'text-orange-600 dark:text-orange-400 bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('goldContent')}>含金量</th>
-                            <th className={`p-4 text-center ${isSorted('votedMvpCount') ? 'bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('votedMvpCount')}>MVP</th>
-                            <th className={`p-4 text-center ${isSorted('luckyCount') ? 'bg-slate-50 dark:bg-slate-800/30' : ''}`} onClick={() => onSort('luckyCount')}>运气王</th>
+                            <th className="px-4 py-3 w-14 text-center border-b border-slate-200 dark:border-slate-800">#</th>
+                            <th className="px-4 py-3 text-left border-b border-slate-200 dark:border-slate-800 min-w-[160px]">玩家</th>
+                            <th className={sortableHeaderClass('powerScore', 'center')} onClick={() => onSort('powerScore')}>
+                                <span className="inline-flex items-center gap-1 justify-center">战力 {getSortIcon('powerScore')}</span>
+                            </th>
+                            <th className="px-3 py-3 w-20 text-center border-b border-slate-200 dark:border-slate-800">趋势</th>
+                            <th className={sortableHeaderClass('avgScore', 'center')} onClick={() => onSort('avgScore')}>
+                                <span className="inline-flex items-center gap-1 justify-center">场均分 {getSortIcon('avgScore')}</span>
+                            </th>
+                            <th className={sortableHeaderClass('avgChips', 'center')} onClick={() => onSort('avgChips')}>
+                                <span className="inline-flex items-center gap-1 justify-center">场均筹码 {getSortIcon('avgChips')}</span>
+                            </th>
+                            <th className={sortableHeaderClass('totalScore', 'center')} onClick={() => onSort('totalScore')}>
+                                <span className="inline-flex items-center gap-1 justify-center">总积分 {getSortIcon('totalScore')}</span>
+                            </th>
+                            <th className={sortableHeaderClass('totalChips', 'center')} onClick={() => onSort('totalChips')}>
+                                <span className="inline-flex items-center gap-1 justify-center">总筹码 {getSortIcon('totalChips')}</span>
+                            </th>
+                            <th className={sortableHeaderClass('goldContent', 'center')} onClick={() => onSort('goldContent')}>
+                                <span className="inline-flex items-center gap-1 justify-center">含金量 {getSortIcon('goldContent')}</span>
+                            </th>
+                            <th className={sortableHeaderClass('wins', 'center')} onClick={() => onSort('wins')}>
+                                <span className="inline-flex items-center gap-1 justify-center">吃鸡数 {getSortIcon('wins')}</span>
+                            </th>
+                            <th className={sortableHeaderClass('votedMvpCount', 'center')} onClick={() => onSort('votedMvpCount')}>
+                                <span className="inline-flex items-center gap-1 justify-center">MVP {getSortIcon('votedMvpCount')}</span>
+                            </th>
+                            <th className={sortableHeaderClass('luckyCount', 'center')} onClick={() => onSort('luckyCount')}>
+                                <span className="inline-flex items-center gap-1 justify-center">运气王 {getSortIcon('luckyCount')}</span>
+                            </th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm font-medium">
+                    <tbody className="text-base">
                         {filteredData.map((p, idx) => (
-                            <tr key={p.name} onClick={() => isSelectionMode ? togglePlayerSelection(p.name) : onPlayerClick(p)} className={`table-row-hover transition-colors cursor-pointer group ${selectedPlayerNames.has(p.name) ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}>
-                                <td className="p-4 text-center font-mono text-slate-400 sticky-col group-hover:bg-slate-50 dark:group-hover:bg-[#161b22] transition-colors border-b border-slate-50 dark:border-slate-800/50">{isSelectionMode ? <input type="checkbox" checked={selectedPlayerNames.has(p.name)} onChange={()=>{}} className="mx-auto accent-indigo-500" /> : (idx < 3 ? <span className={`inline-block w-6 h-6 leading-6 rounded text-[10px] font-bold ${idx===0?'rank-badge-1':idx===1?'rank-badge-2':'rank-badge-3'}`}>{idx+1}</span> : idx+1)}</td>
-                                <td className="p-4 sticky-col left-12 group-hover:bg-slate-50 dark:group-hover:bg-[#161b22] transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] border-b border-slate-50 dark:border-slate-800/50"><div className="flex items-center gap-3"><Avatar name={p.name} src={p.avatar?.avatar || p.avatar} size="md" bordered={false} className="shadow-sm" /><span className="font-bold text-slate-700 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{p.name}</span></div></td>
-                                <td className={`p-4 text-right font-mono font-bold text-lg text-purple-600 dark:text-purple-400 ${isSorted('powerScore') ? 'sorted-cell-highlight' : ''}`}>{Math.round(p.powerScore)}</td>
-                                <td className="p-4"><Sparkline data={p.recentTrend} color={p.recentTrend[p.recentTrend.length-1] >= 10 ? '#059669' : '#94a3b8'} /></td>
-                                <td className={`p-4 text-right text-blue-600 dark:text-blue-400 ${isSorted('avgScore') ? 'sorted-cell-highlight' : ''}`}>{p.avgScore}</td>
-                                <td className={`p-4 text-right text-teal-600 dark:text-teal-400 ${isSorted('avgChips') ? 'sorted-cell-highlight' : ''}`}>{Math.round(p.avgChips)}</td>
-                                <td className={`p-4 text-right font-mono text-emerald-600 dark:text-emerald-400 ${isSorted('totalScore') ? 'sorted-cell-highlight' : ''}`}>{p.totalScore}</td>
-                                <td className={`p-4 text-right font-mono ${p.totalChips >= 0 ? 'text-red-500 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'} ${isSorted('totalChips') ? 'sorted-cell-highlight' : ''}`}>{p.totalChips > 0 ? '+' : ''}{p.totalChips}</td>
-                                <td className={`p-4 text-center text-yellow-600 dark:text-yellow-400 font-bold ${isSorted('wins') ? 'sorted-cell-highlight' : ''}`}>{p.wins > 0 ? p.wins : <span className="text-slate-300 dark:text-slate-700 font-normal">-</span>}</td>
-                                <td className={`p-4 text-right text-orange-500 dark:text-orange-400 ${isSorted('goldContent') ? 'sorted-cell-highlight' : ''}`}>{p.goldContent}</td>
-                                <td className={`p-4 text-center ${isSorted('votedMvpCount') ? 'sorted-cell-highlight' : ''}`}>{p.votedMvpCount > 0 && <span className="bg-indigo-100 text-indigo-700 dark:bg-purple-900/30 dark:text-purple-400 text-[10px] px-1.5 py-0.5 rounded border border-indigo-200 dark:border-purple-500/20">{p.votedMvpCount}</span>}</td>
-                                <td className={`p-4 text-center ${isSorted('luckyCount') ? 'sorted-cell-highlight' : ''}`}>{p.luckyCount > 0 && <span className="bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 text-[10px] px-1.5 py-0.5 rounded border border-pink-200 dark:border-pink-500/20">{p.luckyCount}</span>}</td>
+                            <tr 
+                                key={p.name} 
+                                onClick={() => isSelectionMode ? togglePlayerSelection(p.name) : onPlayerClick(p)} 
+                                className={`
+                                    border-b border-slate-100 dark:border-slate-800/50 
+                                    hover:bg-slate-50 dark:hover:bg-slate-800/30 
+                                    transition-colors cursor-pointer 
+                                    ${selectedPlayerNames.has(p.name) ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}
+                                    ${idx < 3 ? 'bg-gradient-to-r from-transparent via-slate-50/50 to-transparent dark:via-slate-800/30' : ''}
+                                `}
+                            >
+                                <td className="px-4 py-4 text-center text-slate-400">
+                                    {isSelectionMode 
+                                        ? <input type="checkbox" checked={selectedPlayerNames.has(p.name)} onChange={()=>{}} className="accent-indigo-500" /> 
+                                        : (idx < 3 
+                                            ? <MedalIcon rank={idx} />
+                                            : <span className="text-slate-400">{idx+1}</span>
+                                        )
+                                    }
+                                </td>
+                                <td className="px-4 py-4">
+                                    <div className="flex items-center gap-3">
+                                        <Avatar name={p.name} src={p.avatar?.avatar || p.avatar} size={idx < 3 ? 'md' : 'sm'} bordered={false} className={idx < 3 ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 ' + (idx === 0 ? 'ring-yellow-400' : idx === 1 ? 'ring-slate-300' : 'ring-orange-400') : ''} />
+                                        <span className={`font-semibold text-slate-700 dark:text-white truncate max-w-[120px] ${idx < 3 ? 'text-base' : ''}`}>{p.name}</span>
+                                    </div>
+                                </td>
+                                <td className={`px-5 py-4 text-center ${isSorted('powerScore') ? 'bg-purple-50/50 dark:bg-purple-900/10' : ''}`}>
+                                    <span className={`font-black text-purple-600 dark:text-purple-400 ${idx < 3 ? 'text-xl' : 'text-lg'}`}>
+                                        {Math.round(p.powerScore)}
+                                    </span>
+                                </td>
+                                <td className="px-3 py-4 w-20">
+                                    <Sparkline data={p.recentTrend} color={p.recentTrend[p.recentTrend.length-1] >= 10 ? '#059669' : '#94a3b8'} />
+                                </td>
+                                <td className={`px-5 py-4 text-center text-blue-600 dark:text-blue-400 ${isSorted('avgScore') ? 'bg-emerald-50/30 dark:bg-emerald-900/5' : ''}`}>
+                                    {p.avgScore}
+                                </td>
+                                <td className={`px-5 py-4 text-center text-teal-600 dark:text-teal-400 ${isSorted('avgChips') ? 'bg-emerald-50/30 dark:bg-emerald-900/5' : ''}`}>
+                                    {Math.round(p.avgChips)}
+                                </td>
+                                <td className={`px-5 py-4 text-center text-emerald-600 dark:text-emerald-400 ${isSorted('totalScore') ? 'bg-emerald-50/30 dark:bg-emerald-900/5' : ''}`}>
+                                    {p.totalScore}
+                                </td>
+                                <td className={`px-5 py-4 text-center ${p.totalChips >= 0 ? 'text-teal-500' : 'text-slate-400'} ${isSorted('totalChips') ? 'bg-emerald-50/30 dark:bg-emerald-900/5' : ''}`}>
+                                    {p.totalChips > 0 ? '+' : ''}{p.totalChips}
+                                </td>
+                                <td className={`px-5 py-4 text-center text-orange-500 dark:text-orange-400 ${isSorted('goldContent') ? 'bg-emerald-50/30 dark:bg-emerald-900/5' : ''}`}>
+                                    {p.goldContent !== undefined && p.goldContent !== null ? p.goldContent : <span className="text-slate-300 dark:text-slate-600">-</span>}
+                                </td>
+                                <td className={`px-5 py-4 text-center ${isSorted('wins') ? 'bg-emerald-50/30 dark:bg-emerald-900/5' : ''}`}>
+                                    {p.wins > 0 
+                                        ? <span className="text-yellow-600 dark:text-yellow-400 font-bold">{p.wins}</span>
+                                        : <span className="text-slate-300 dark:text-slate-600">-</span>
+                                    }
+                                </td>
+                                <td className={`px-5 py-4 text-center ${isSorted('votedMvpCount') ? 'bg-emerald-50/30 dark:bg-emerald-900/5' : ''}`}>
+                                    {p.votedMvpCount > 0 
+                                        ? <span className="text-indigo-600 dark:text-purple-400 font-bold">{p.votedMvpCount}</span>
+                                        : <span className="text-slate-300 dark:text-slate-600">-</span>
+                                    }
+                                </td>
+                                <td className={`px-5 py-4 text-center ${isSorted('luckyCount') ? 'bg-emerald-50/30 dark:bg-emerald-900/5' : ''}`}>
+                                    {p.luckyCount > 0 
+                                        ? <span className="text-pink-600 dark:text-pink-400 font-bold">{p.luckyCount}</span>
+                                        : <span className="text-slate-300 dark:text-slate-600">-</span>
+                                    }
+                                </td>
                             </tr>
                         ))}
                     </tbody>
@@ -164,4 +302,4 @@ const Leaderboard = ({
     );
 };
 
-export default Leaderboard;
+export default memo(Leaderboard);

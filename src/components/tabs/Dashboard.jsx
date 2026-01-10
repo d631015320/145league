@@ -1,6 +1,6 @@
-import React from 'react';
-import Icon from '../Icon';
-import Avatar from '../Avatar';
+import { memo } from 'react';
+import Icon from '../common/Icon';
+import Avatar from '../common/Avatar';
 
 const Dashboard = ({ 
     statsData, 
@@ -11,8 +11,8 @@ const Dashboard = ({
     onNavigateToHistory,
     GAMES_PER_SEASON 
 }) => {
-    // 提取前三名
-    const top3 = statsData.leaderboardData.slice(0, 3);
+    // 提取前三名 - 始终使用战力榜前三 (topPower)，不受排行榜排序影响
+    const top3 = statsData.topPower.slice(0, 3);
     const first = top3[0];
     const second = top3[1];
     const third = top3[2];
@@ -27,13 +27,15 @@ const Dashboard = ({
             {/* 顶部控制栏 */}
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                    <Icon name="layout-dashboard" className="w-6 h-6 text-emerald-500"/> 概览
+                    <Icon name="layout-dashboard" className="w-6 h-6 text-emerald-500" aria-hidden="true"/> 概览
                 </h2>
                 <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-500 uppercase">赛季:</span>
+                    <label htmlFor="season-select-dashboard" className="text-xs font-bold text-slate-500 uppercase">赛季:</label>
                     <select 
+                        id="season-select-dashboard"
                         value={selectedSeason} 
                         onChange={e => onSeasonChange(e.target.value)} 
+                        aria-label="选择赛季"
                         className="input-pro py-1 px-3 rounded-lg text-sm bg-white dark:bg-slate-800 border-none font-mono cursor-pointer"
                     >
                         <option value="all">🏆 全赛季 (All-Time)</option>
@@ -65,34 +67,48 @@ const Dashboard = ({
                         
                         {/* 🥈 第二名 (左侧) */}
                         {second && (
-                            <div className="flex flex-col items-center group cursor-pointer" onClick={() => onPlayerClick(second)}>
+                            <div 
+                                className="flex flex-col items-center group cursor-pointer" 
+                                onClick={() => onPlayerClick(second)}
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`查看第二名 ${second.name} 的详细信息，战力值 ${Math.round(second.powerScore)}`}
+                                onKeyDown={(e) => e.key === 'Enter' && onPlayerClick(second)}
+                            >
                                 <div className="relative mb-3 transition-transform group-hover:-translate-y-1">
                                     <Avatar name={second.name} src={second.avatar} size="lg" className="border-4 border-slate-300 shadow-lg" />
-                                    <div className="absolute -bottom-2 -right-1 bg-slate-300 text-slate-700 text-[10px] font-black px-1.5 rounded shadow-sm">2</div>
+                                    <div className="absolute -bottom-2 -right-1 bg-slate-300 text-slate-700 text-[10px] font-black px-1.5 rounded shadow-sm" aria-hidden="true">2</div>
                                 </div>
                                 <div className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">{second.name}</div>
                                 <div className="text-xs font-mono text-slate-400">
                                     {Math.round(second.powerScore)} <span className="text-[10px] opacity-70">pts</span>
                                 </div>
                                 {/* 领奖台柱子 */}
-                                <div className="w-16 sm:w-20 h-24 bg-gradient-to-t from-slate-200 to-slate-100 dark:from-slate-800 dark:to-slate-700 rounded-t-lg mt-2 shadow-inner border-t border-slate-300 dark:border-slate-600"></div>
+                                <div className="w-16 sm:w-20 h-24 bg-gradient-to-t from-slate-200 to-slate-100 dark:from-slate-800 dark:to-slate-700 rounded-t-lg mt-2 shadow-inner border-t border-slate-300 dark:border-slate-600" aria-hidden="true"></div>
                             </div>
                         )}
 
                         {/* 🥇 第一名 (中间，最高) */}
                         {first && (
-                            <div className="flex flex-col items-center z-10 -mx-2 sm:mx-0 group cursor-pointer" onClick={() => onPlayerClick(first)}>
+                            <div 
+                                className="flex flex-col items-center z-10 -mx-2 sm:mx-0 group cursor-pointer" 
+                                onClick={() => onPlayerClick(first)}
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`查看第一名 ${first.name} 的详细信息，战力值 ${Math.round(first.powerScore)}`}
+                                onKeyDown={(e) => e.key === 'Enter' && onPlayerClick(first)}
+                            >
                                 <div className="relative mb-3 transition-transform group-hover:-translate-y-2">
-                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-yellow-400 animate-bounce"><Icon name="crown" className="w-6 h-6 fill-current"/></div>
+                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-yellow-400 animate-bounce" aria-hidden="true"><Icon name="crown" className="w-6 h-6 fill-current"/></div>
                                     <Avatar name={first.name} src={first.avatar} size="xl" className="border-4 border-yellow-400 shadow-xl shadow-yellow-400/20" />
-                                    <div className="absolute -bottom-3 -right-2 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded shadow-sm">1</div>
+                                    <div className="absolute -bottom-3 -right-2 bg-yellow-400 text-yellow-900 text-xs font-black px-2 py-0.5 rounded shadow-sm" aria-hidden="true">1</div>
                                 </div>
                                 <div className="text-base font-black text-slate-800 dark:text-white mb-1">{first.name}</div>
                                 <div className="text-sm font-mono font-bold text-yellow-600 dark:text-yellow-400">
                                     {Math.round(first.powerScore)} <span className="text-[10px] opacity-70">pts</span>
                                 </div>
                                 {/* 领奖台柱子 */}
-                                <div className="w-20 sm:w-24 h-32 bg-gradient-to-t from-yellow-100 to-white dark:from-yellow-900/30 dark:to-slate-700 rounded-t-lg mt-2 shadow-lg border-t border-yellow-200 dark:border-yellow-700/50 relative overflow-hidden">
+                                <div className="w-20 sm:w-24 h-32 bg-gradient-to-t from-yellow-100 to-white dark:from-yellow-900/30 dark:to-slate-700 rounded-t-lg mt-2 shadow-lg border-t border-yellow-200 dark:border-yellow-700/50 relative overflow-hidden" aria-hidden="true">
                                     <div className="absolute inset-0 bg-yellow-400/10"></div>
                                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-yellow-600/20 dark:text-yellow-400/20 font-black text-4xl">1</div>
                                 </div>
@@ -101,17 +117,24 @@ const Dashboard = ({
 
                         {/* 🥉 第三名 (右侧) */}
                         {third && (
-                            <div className="flex flex-col items-center group cursor-pointer" onClick={() => onPlayerClick(third)}>
+                            <div 
+                                className="flex flex-col items-center group cursor-pointer" 
+                                onClick={() => onPlayerClick(third)}
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`查看第三名 ${third.name} 的详细信息，战力值 ${Math.round(third.powerScore)}`}
+                                onKeyDown={(e) => e.key === 'Enter' && onPlayerClick(third)}
+                            >
                                 <div className="relative mb-3 transition-transform group-hover:-translate-y-1">
                                     <Avatar name={third.name} src={third.avatar} size="lg" className="border-4 border-orange-300 shadow-lg" />
-                                    <div className="absolute -bottom-2 -right-1 bg-orange-300 text-orange-800 text-[10px] font-black px-1.5 rounded shadow-sm">3</div>
+                                    <div className="absolute -bottom-2 -right-1 bg-orange-300 text-orange-800 text-[10px] font-black px-1.5 rounded shadow-sm" aria-hidden="true">3</div>
                                 </div>
                                 <div className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">{third.name}</div>
                                 <div className="text-xs font-mono text-slate-400">
                                     {Math.round(third.powerScore)} <span className="text-[10px] opacity-70">pts</span>
                                 </div>
                                 {/* 领奖台柱子 */}
-                                <div className="w-16 sm:w-20 h-16 bg-gradient-to-t from-orange-100 to-white dark:from-orange-900/30 dark:to-slate-700 rounded-t-lg mt-2 shadow-inner border-t border-orange-200 dark:border-orange-800/50"></div>
+                                <div className="w-16 sm:w-20 h-16 bg-gradient-to-t from-orange-100 to-white dark:from-orange-900/30 dark:to-slate-700 rounded-t-lg mt-2 shadow-inner border-t border-orange-200 dark:border-orange-800/50" aria-hidden="true"></div>
                             </div>
                         )}
                     </div>
@@ -201,8 +224,12 @@ const Dashboard = ({
                                 <span className="text-sm font-normal text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">{statsData.latestMatch.totalPlayers} 人参赛</span>
                             </div>
                         </div>
-                        <button onClick={onNavigateToHistory} className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 font-bold uppercase flex items-center gap-1 transition-colors">
-                            全部记录 <Icon name="arrow-right" className="w-3 h-3"/>
+                        <button 
+                            onClick={onNavigateToHistory} 
+                            aria-label="查看全部比赛记录"
+                            className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 font-bold uppercase flex items-center gap-1 transition-colors"
+                        >
+                            全部记录 <Icon name="arrow-right" className="w-3 h-3" aria-hidden="true"/>
                         </button>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -221,4 +248,4 @@ const Dashboard = ({
     );
 };
 
-export default Dashboard;
+export default memo(Dashboard);

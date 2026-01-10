@@ -1,0 +1,29 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Avatar > matches snapshot with default props 1`] = `
+<div>
+  <div
+    class="w-10 h-10 text-xs rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden bg-slate-100 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700  relative shadow-sm"
+  >
+    <span
+      class="font-bold text-slate-400 select-none"
+    >
+      T
+    </span>
+  </div>
+</div>
+`;
+
+exports[`Avatar > matches snapshot with image 1`] = `
+<div>
+  <div
+    class="w-16 h-16 text-lg rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden bg-slate-100 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700  relative shadow-sm"
+  >
+    <img
+      alt="Test"
+      class="w-full h-full object-cover"
+      src="https://example.com/test.jpg"
+    />
+  </div>
+</div>
+`;

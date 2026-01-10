@@ -122,3 +122,13 @@ body.modal-open {
     transform: scale(0.9);
     transition: transform 0.1s;
 }
+
+/* --- GTO 训练界面专用动画 --- */
+.animate-scale-in { 
+    animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; 
+}
+
+@keyframes scaleIn { 
+    from { opacity: 0; transform: scale(0.95); } 
+    to { opacity: 1; transform: scale(1); } 
+}

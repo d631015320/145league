@@ -1,41 +1,21 @@
 // src/lib/utils.js
+/**
+ * @fileoverview 工具函数模块
+ * @description 包含核心工具函数（常量已移至 constants/index.js）
+ */
 
-// ==========================================
-// 🎛️ 勋章与游戏规则配置中心
-// ==========================================
-export const BADGE_CONFIG = {
-    // ⚡️ 神经刀：单场狂揽多少筹码？
-    NERVE_KNIFE_LIMIT: 2000, 
-
-    // 🤝 慈善家：单场输掉多少筹码算慈善？(填写正数，逻辑里会自动取负)
-    CHARITY_THRESHOLD: 200,  
-
-    // 📈 逆风翻盘：买入超过多少，最后还能赢钱？
-    COMEBACK_BUYIN_THRESHOLD: 2400,
-
-    // 👑 统治者：胜率门槛 (0.3 代表 30%)
-    RULER_WIN_RATE: 0.3,
-
-    // 🛡️ 老兵：至少打多少场？
-    VETERAN_GAMES: 10,
-
-    // 💔 意难平：拿多少次第二名？
-    SECOND_PLACE_COUNT: 3
-};
-
-// 比赛相关的常量（保持不变）
-export const GAMES_PER_SEASON = 10; // 一个赛季几场
-export const CHIP_EXCHANGE_RATE = 100; // 汇率
-export const BASE_SCORES = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]; // 排名分
-
-// 记得把下面这行导出加进去，或者确保 BADGE_CONFIG 被导出了
-// export { BADGE_CONFIG, ... }
-
+// 为了向后兼容，从 constants 重新导出常量
+export { BADGE_CONFIG, GAMES_PER_SEASON, CHIP_EXCHANGE_RATE, BASE_SCORES } from '../constants';
 
 // ================= 工具函数 =================
 
 /**
- * 获取 ISO 周数
+ * 获取日期对应的 ISO 周数
+ * @description 根据 ISO 8601 标准计算周数，周一为每周第一天
+ * @param {string} dateString - 日期字符串，格式为 YYYY-MM-DD
+ * @returns {string} ISO 周数字符串，格式为 "YYYY-WN"（如 "2025-W2"）
+ * @example
+ * getISOWeek('2025-01-11') // 返回 "2025-W2"
  */
 export const getISOWeek = (dateString) => {
     const date = new Date(dateString);
@@ -48,7 +28,13 @@ export const getISOWeek = (dateString) => {
 };
 
 /**
- * 图片压缩
+ * 压缩图片到指定尺寸
+ * @description 将图片压缩为 150x150 像素的 JPEG 格式，质量为 85%
+ * @param {File} file - 要压缩的图片文件对象
+ * @returns {Promise<string>} 压缩后的 Base64 编码图片数据
+ * @example
+ * const input = document.querySelector('input[type="file"]');
+ * const compressedImage = await compressImage(input.files[0]);
  */
 export const compressImage = (file) => {
     return new Promise((resolve) => {
@@ -71,12 +57,38 @@ export const compressImage = (file) => {
 };
 
 /**
- * 核心算法：计算最小转账路径 (智能结算)
- * @param {Array} results - 比赛结果数组 [{name, chips, ...}]
+ * 计算最小转账路径（智能结算算法）
+ * @description 使用双指针算法计算最优的转账路径，最小化转账次数
+ * 
+ * 算法原理：
+ * 1. 将玩家分为输家（debtors）和赢家（creditors）
+ * 2. 按金额从大到小排序
+ * 3. 使用双指针依次匹配，每次取两者最小值进行转账
+ * 4. 直到所有债务清零
+ * 
+ * @param {Array<{name: string, chips: number}>} results - 比赛结果数组
+ * @param {string} results[].name - 玩家名称
+ * @param {number} results[].chips - 筹码盈亏（正数为赢，负数为输）
+ * @returns {Array<{from: string, to: string, amount: number}>} 转账记录数组
+ * @returns {string} return[].from - 付款方（输家）
+ * @returns {string} return[].to - 收款方（赢家）
+ * @returns {number} return[].amount - 转账金额（正数）
+ * 
+ * @example
+ * const results = [
+ *   { name: 'Alice', chips: 500 },
+ *   { name: 'Bob', chips: -300 },
+ *   { name: 'Charlie', chips: -200 }
+ * ];
+ * const settlements = calculateSettlements(results);
+ * // 返回: [
+ * //   { from: 'Bob', to: 'Alice', amount: 300 },
+ * //   { from: 'Charlie', to: 'Alice', amount: 200 }
+ * // ]
  */
 export const calculateSettlements = (results) => {
-    let debtors = [];
-    let creditors = [];
+    const debtors = [];
+    const creditors = [];
     
     // 1. 分离赢家和输家
     results.forEach(r => {
