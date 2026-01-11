@@ -248,34 +248,33 @@ const Dashboard = ({
                 </div>
             </div>
 
-            {/* 最新比赛 */}
+            {/* 最新比赛 - 采用历史页面风格 */}
             {statsData.latestMatch && (
-                <div className="glass-panel rounded-2xl p-6 border-t-4 border-t-indigo-500 bg-white dark:bg-slate-800/60 mt-6 shadow-lg">
-                    <div className="flex justify-between items-end mb-6">
-                        <div>
-                            <div className="text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-2">
-                                {selectedSeason === 'all' ? '最新比赛' : `S${selectedSeason.slice(1)} 赛季收官战`}
-                            </div>
-                            <div className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-3">
-                                {formatDate(statsData.latestMatch.date)}
-                                <span className="text-sm font-normal text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">{statsData.latestMatch.totalPlayers} 人参赛</span>
-                            </div>
+                <div className="glass-panel rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700/50 mt-6">
+                    {/* 卡片头部 */}
+                    <div className="bg-slate-50 dark:bg-slate-800/60 p-3 px-4 flex justify-between items-center border-b border-slate-200 dark:border-slate-700/50">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                            <span className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">
+                                {selectedSeason === 'all' ? '最新比赛' : `S${selectedSeason.slice(1)} 收官战`}
+                            </span>
+                            <span className="font-mono text-emerald-600 dark:text-emerald-400 text-sm font-bold">{formatDate(statsData.latestMatch.date)}</span>
+                            <span className="text-slate-500 dark:text-slate-400 text-xs">{statsData.latestMatch.totalPlayers} 人参赛</span>
                         </div>
                         <button
                             onClick={onNavigateToHistory}
                             aria-label="查看全部比赛记录"
-                            className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 font-bold uppercase flex items-center gap-1 transition-colors"
+                            className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 font-bold flex items-center gap-1 transition-colors touch-feedback"
                         >
-                            全部记录 <Icon name="arrow-right" className="w-3 h-3" aria-hidden="true" />
+                            全部 <Icon name="arrow-right" className="w-3 h-3" aria-hidden="true" />
                         </button>
                     </div>
-                    <div className={`grid gap-3 sm:gap-4 ${isMobile ? 'grid-cols-3' : 'grid-cols-4 lg:grid-cols-5'}`}>
+                    {/* 参赛者网格 - 与历史页面一致 */}
+                    <div className={`p-3 sm:p-4 grid gap-2 sm:gap-3 ${isMobile ? 'grid-cols-3' : 'grid-cols-4 lg:grid-cols-5'}`}>
                         {statsData.latestMatch.results.slice(0, latestMatchDisplayCount).map((r, i) => (
-                            <div key={i} className="bg-slate-50 dark:bg-slate-800/40 p-3 rounded-lg border border-slate-200 dark:border-slate-700/50 flex flex-col items-center text-center relative overflow-hidden group hover:shadow-md transition-all">
-                                {r.rank === 1 && <div className="absolute top-0 right-0 p-1"><Icon name="crown" className="w-3 h-3 text-yellow-500 fill-current" /></div>}
-                                <div className="text-xs text-slate-400 font-bold mb-1">#{r.rank}</div>
-                                <div className="font-bold text-slate-700 dark:text-white mb-1">{r.name}</div>
-                                <div className="text-emerald-600 dark:text-emerald-400 font-mono text-sm font-bold">+{r.score}</div>
+                            <div key={i} className={`relative p-2 rounded border flex flex-col items-center justify-center text-center transition-colors ${r.rank===1 ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-500/10 dark:border-yellow-500/30' : 'bg-white dark:bg-slate-800/30 border-slate-100 dark:border-slate-700/30'}`}>
+                                <span className={`text-[10px] font-bold absolute top-1 left-1.5 ${r.rank===1?'text-yellow-600 dark:text-yellow-500':'text-slate-400'}`}>#{r.rank}</span>
+                                <div className={`font-bold text-slate-700 dark:text-slate-200 mt-1 mb-1 truncate w-full ${isMobile ? 'text-xs' : 'text-sm'}`}>{r.name}</div>
+                                <div className={`font-mono ${isMobile ? 'text-[10px]' : 'text-xs'} text-emerald-600 dark:text-emerald-400 font-bold`}>+{r.score}</div>
                             </div>
                         ))}
                     </div>
