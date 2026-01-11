@@ -1,21 +1,23 @@
 <p align="center">
-  <img src="public/favicon.png" alt="145 League Logo" width="120" height="120">
+  <img src="public/favicon.png" alt="145 League Logo" width="140" height="140">
 </p>
 
 <h1 align="center">🎴 145 联赛</h1>
 
 <p align="center">
   <strong>专业级扑克联赛数据管理与分析平台</strong>
-  <br />
-  <sub>实时数据同步 · 智能统计分析 · 跨平台支持</sub>
+</p>
+
+<p align="center">
+  <sub>✨ 实时数据同步 · 📊 智能统计分析 · 🖥️ 跨平台支持</sub>
 </p>
 
 <p align="center">
   <a href="#-功能特性">功能特性</a> •
+  <a href="#-技术栈">技术栈</a> •
   <a href="#-快速开始">快速开始</a> •
   <a href="#-系统架构">系统架构</a> •
   <a href="#-开发指南">开发指南</a> •
-  <a href="#-贡献指南">贡献指南</a> •
   <a href="#-常见问题">FAQ</a>
 </p>
 
@@ -49,72 +51,45 @@
 > - 🔄 实时数据同步，多端协作
 > - 🎨 精心设计的用户界面
 
-
 ---
 
 ## ✨ 功能特性
 
 <table>
-<tr>
-<td width="50%">
-
-### 📊 数据仪表盘
-- 实时联赛概览
-- 关键指标监控
-- 趋势分析图表
-- 快速数据洞察
-
-</td>
-<td width="50%">
-
-### 🏆 智能排行榜
-- 多维度排序算法
-- 战力值计算系统
-- 玩家对比分析
-- 历史排名追踪
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-### 📝 比赛历史
-- 完整比赛记录
-- 详情查看功能
-- 数据导出支持
-- 高级筛选过滤
-
-</td>
-<td width="50%">
-
-### ➕ 快速录入
-- 一键录入结果
-- 智能数据校验
-- 批量操作支持
-- 撤销/重做功能
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-### 👤 玩家档案
-- 个人数据统计
-- 生涯曲线图表
-- 能力雷达分析
-- 成就徽章系统
-
-</td>
-<td width="50%">
-
-### ⚙️ 系统设置
-- 深色/浅色主题
-- 数据备份恢复
-- 权限管理控制
-- 个性化配置
-
-</td>
-</tr>
+  <tr>
+    <td align="center" width="33%">
+      <img width="60" src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Bar%20Chart.png" alt="Dashboard"/>
+      <br><b>数据仪表盘</b>
+      <br><sub>实时联赛概览<br>关键指标监控<br>趋势分析图表</sub>
+    </td>
+    <td align="center" width="33%">
+      <img width="60" src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Activities/Trophy.png" alt="Leaderboard"/>
+      <br><b>智能排行榜</b>
+      <br><sub>多维度排序算法<br>战力值计算系统<br>历史排名追踪</sub>
+    </td>
+    <td align="center" width="33%">
+      <img width="60" src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Memo.png" alt="History"/>
+      <br><b>比赛历史</b>
+      <br><sub>完整比赛记录<br>数据导出支持<br>高级筛选过滤</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%">
+      <img width="60" src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/People/Bust%20in%20Silhouette.png" alt="Profile"/>
+      <br><b>玩家档案</b>
+      <br><sub>个人数据统计<br>生涯曲线图表<br>能力雷达分析</sub>
+    </td>
+    <td align="center" width="33%">
+      <img width="60" src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Activities/1st%20Place%20Medal.png" alt="Badge"/>
+      <br><b>成就徽章</b>
+      <br><sub>里程碑解锁<br>荣誉展示<br>成就系统</sub>
+    </td>
+    <td align="center" width="33%">
+      <img width="60" src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Gear.png" alt="Settings"/>
+      <br><b>系统设置</b>
+      <br><sub>深色/浅色主题<br>数据备份恢复<br>权限管理控制</sub>
+    </td>
+  </tr>
 </table>
 
 ### 🎯 核心亮点
@@ -133,32 +108,32 @@
 ## 🛠️ 技术栈
 
 <table>
-<tr>
-<td align="center" width="96">
-<img src="https://skillicons.dev/icons?i=react" width="48" height="48" alt="React" />
-<br>React 19
-</td>
-<td align="center" width="96">
-<img src="https://skillicons.dev/icons?i=vite" width="48" height="48" alt="Vite" />
-<br>Vite 7
-</td>
-<td align="center" width="96">
-<img src="https://skillicons.dev/icons?i=tailwind" width="48" height="48" alt="Tailwind" />
-<br>Tailwind
-</td>
-<td align="center" width="96">
-<img src="https://skillicons.dev/icons?i=firebase" width="48" height="48" alt="Firebase" />
-<br>Firebase
-</td>
-<td align="center" width="96">
-<img src="https://skillicons.dev/icons?i=electron" width="48" height="48" alt="Electron" />
-<br>Electron
-</td>
-<td align="center" width="96">
-<img src="https://skillicons.dev/icons?i=vitest" width="48" height="48" alt="Vitest" />
-<br>Vitest
-</td>
-</tr>
+  <tr>
+    <td align="center" width="96">
+      <img src="https://skillicons.dev/icons?i=react" width="48" height="48" alt="React" />
+      <br><sub><b>React 19</b></sub>
+    </td>
+    <td align="center" width="96">
+      <img src="https://skillicons.dev/icons?i=vite" width="48" height="48" alt="Vite" />
+      <br><sub><b>Vite 7</b></sub>
+    </td>
+    <td align="center" width="96">
+      <img src="https://skillicons.dev/icons?i=tailwind" width="48" height="48" alt="Tailwind" />
+      <br><sub><b>Tailwind</b></sub>
+    </td>
+    <td align="center" width="96">
+      <img src="https://skillicons.dev/icons?i=firebase" width="48" height="48" alt="Firebase" />
+      <br><sub><b>Firebase</b></sub>
+    </td>
+    <td align="center" width="96">
+      <img src="https://skillicons.dev/icons?i=electron" width="48" height="48" alt="Electron" />
+      <br><sub><b>Electron</b></sub>
+    </td>
+    <td align="center" width="96">
+      <img src="https://skillicons.dev/icons?i=vitest" width="48" height="48" alt="Vitest" />
+      <br><sub><b>Vitest</b></sub>
+    </td>
+  </tr>
 </table>
 
 ### 技术架构详情
@@ -170,8 +145,7 @@
 | **样式方案** | Tailwind CSS | 3.4.17 | 原子化 CSS 框架 |
 | **数据库** | Firebase Firestore | 12.7.0 | 实时 NoSQL 数据库 |
 | **桌面端** | Electron | 39.2.7 | 跨平台桌面应用 |
-| **图表库** | Chart.js | 4.5.1 | 交互式数据可视化 |
-| **图标库** | Lucide React | 0.562.0 | 精美 SVG 图标 |
+| **图表库** | Recharts | - | 交互式数据可视化 |
 | **单元测试** | Vitest | 4.0.16 | 快速单元测试框架 |
 | **组件测试** | Testing Library | 16.3.1 | React 组件测试 |
 | **属性测试** | fast-check | 4.5.3 | 属性基础测试 |
@@ -187,13 +161,12 @@
 |:-----|:---------|:---------|
 | Node.js | 18.0.0 | 20.x LTS |
 | npm | 9.0.0 | 10.x |
-| yarn | 1.22.0 | 4.x |
 
 ### 📥 安装步骤
 
 ```bash
 # 1️⃣ 克隆仓库
-git clone https://github.com/your-org/league-app.git
+git clone https://github.com/d631015320/league-app.git
 cd league-app
 
 # 2️⃣ 安装依赖
@@ -206,7 +179,7 @@ cp .env.example .env.local
 ### 🔥 Firebase 配置
 
 <details>
-<summary>点击展开详细配置步骤</summary>
+<summary>📖 点击展开详细配置步骤</summary>
 
 1. 访问 [Firebase Console](https://console.firebase.google.com/) 创建新项目
 2. 在项目设置中启用以下服务：
@@ -254,17 +227,10 @@ npm run preview
 ### 🧪 运行测试
 
 ```bash
-# 运行所有测试
-npm test
-
-# 监听模式（开发时使用）
-npm run test:watch
-
-# 生成覆盖率报告
-npm run test:coverage
-
-# 代码规范检查
-npm run lint
+npm test              # 运行所有测试
+npm run test:watch    # 监听模式
+npm run test:coverage # 覆盖率报告
+npm run lint          # 代码规范检查
 ```
 
 ---
@@ -285,22 +251,21 @@ npm run lint
            ▼                  ▼                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        🧠 Business Logic Layer                       │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │                      Custom Hooks                            │    │
-│  │  useStatsCalculator │ useLeagueStats │ useFirebaseData      │    │
-│  └─────────────────────────────┬───────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────────────────────────┐│
+│  │                      Custom Hooks                               ││
+│  │  useStatsCalculator │ useLeagueStats │ useFirebaseData          ││
+│  └─────────────────────────────┬───────────────────────────────────┘│
 └────────────────────────────────┼────────────────────────────────────┘
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                          💾 Data Layer                               │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │              Firebase Service Layer                          │    │
-│  │         (Firestore CRUD + Realtime Sync)                    │    │
-│  └─────────────────────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────────────────────────┐│
+│  │              Firebase Service Layer                             ││
+│  │         (Firestore CRUD + Realtime Sync)                        ││
+│  └─────────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────────┘
 ```
-
 
 ### 📁 目录结构
 
@@ -311,72 +276,28 @@ league-app/
 │   └── preload.cjs              # 预加载脚本
 │
 ├── 📂 public/                   # 静态资源
-│   └── favicon.png              # 应用图标
 │
 ├── 📂 src/                      # 源代码目录
-│   ├── main.jsx                 # 应用入口
-│   ├── App.jsx                  # 根组件
-│   ├── index.css                # 全局样式
-│   │
 │   ├── 📂 components/           # 组件目录
-│   │   ├── 📂 common/           # 通用组件
-│   │   │   ├── Avatar.jsx       # 头像组件
-│   │   │   ├── Icon.jsx         # 图标组件
-│   │   │   ├── Clock.jsx        # 时钟组件
-│   │   │   └── ErrorBoundary.jsx
-│   │   │
-│   │   ├── 📂 layout/           # 布局组件
-│   │   │   ├── Header.jsx       # 顶部导航
-│   │   │   └── BottomNav.jsx    # 底部导航
-│   │   │
+│   │   ├── 📂 common/           # 通用组件 (Avatar, Icon, Clock...)
+│   │   ├── 📂 layout/           # 布局组件 (Header, BottomNav)
 │   │   ├── 📂 modals/           # 弹窗组件
-│   │   │   ├── PlayerProfileModal.jsx
-│   │   │   ├── HeadToHead.jsx
-│   │   │   ├── SecurityModal.jsx
-│   │   │   └── SettlementModal.jsx
-│   │   │
 │   │   └── 📂 tabs/             # 页面组件
-│   │       ├── Dashboard.jsx    # 仪表盘
-│   │       ├── Leaderboard.jsx  # 排行榜
-│   │       ├── MatchHistory.jsx # 比赛历史
-│   │       ├── NewGameForm.jsx  # 新建比赛
-│   │       └── Settings.jsx     # 设置页面
 │   │
 │   ├── 📂 charts/               # 图表组件
-│   │   ├── CareerChart.jsx      # 生涯曲线图
-│   │   ├── ProRadarChart.jsx    # 能力雷达图
-│   │   └── Sparkline.jsx        # 迷你趋势图
-│   │
 │   ├── 📂 hooks/                # 自定义 Hooks
-│   │   ├── useStatsCalculator.js
-│   │   ├── useLeagueStats.js
-│   │   ├── useFirebaseData.js
-│   │   └── useTheme.js
-│   │
 │   ├── 📂 services/             # 服务层
-│   │   └── firebase.service.js  # Firebase 服务
-│   │
 │   ├── 📂 lib/                  # 工具库
-│   │   ├── firebase.js          # Firebase 配置
-│   │   └── utils.js             # 工具函数
-│   │
 │   ├── 📂 constants/            # 常量定义
-│   │   └── index.js
-│   │
 │   ├── 📂 types/                # 类型定义
-│   │   └── index.js
-│   │
 │   └── 📂 __tests__/            # 测试文件
-│       ├── 📂 components/       # 组件测试
-│       ├── 📂 hooks/            # Hook 测试
-│       └── 📂 utils/            # 工具测试
 │
-├── 📄 package.json              # 项目配置
-├── 📄 vite.config.js            # Vite 配置
-├── 📄 tailwind.config.js        # Tailwind 配置
-├── 📄 vitest.config.js          # Vitest 配置
-└── 📄 eslint.config.js          # ESLint 配置
+├── 📂 docs/                     # 项目文档
+└── ...配置文件
 ```
+
+> 📚 更多架构细节请参考 [系统架构文档](docs/ARCHITECTURE.md)
+
 
 ---
 
@@ -390,40 +311,6 @@ league-app/
 | `useLeagueStats` | 联盟极值计算 | 玩家列表 | 最高/最低各项指标 |
 | `useFirebaseData` | 实时数据订阅 | 集合路径 | 实时数据流 |
 | `useTheme` | 主题状态管理 | - | 主题状态、切换方法 |
-
-### 数据模型
-
-```javascript
-/**
- * 玩家数据结构
- * @typedef {Object} Player
- */
-const Player = {
-  id: 'string',           // 唯一标识
-  name: 'string',         // 玩家名称
-  avatar: 'string',       // 头像 URL
-  stats: {
-    totalGames: 0,        // 总场次
-    totalScore: 0,        // 总积分
-    avgScore: 0,          // 场均积分
-    winRate: 0,           // 胜率
-    powerRating: 0        // 战力值
-  }
-}
-
-/**
- * 比赛数据结构
- * @typedef {Object} Match
- */
-const Match = {
-  id: 'string',           // 唯一标识
-  date: 'timestamp',      // 比赛时间
-  players: [],            // 参赛玩家
-  scores: [],             // 各玩家得分
-  winner: 'string'        // 获胜者 ID
-}
-```
-
 
 ### 🧪 测试策略
 
@@ -447,12 +334,14 @@ const Match = {
 | **组件测试** | Testing Library | UI 组件渲染、交互行为 |
 | **快照测试** | Vitest | 组件结构稳定性 |
 
+> 📚 更多开发细节请参考 [开发指南文档](docs/DEVELOPMENT.md)
+
 ---
 
 ## ❓ 常见问题
 
 <details>
-<summary><b>Q: 如何配置 Firebase？</b></summary>
+<summary><b>🔥 Q: 如何配置 Firebase？</b></summary>
 
 1. 创建 Firebase 项目
 2. 启用 Firestore 和 Authentication
@@ -462,7 +351,7 @@ const Match = {
 </details>
 
 <details>
-<summary><b>Q: Electron 打包后无法运行？</b></summary>
+<summary><b>🖥️ Q: Electron 打包后无法运行？</b></summary>
 
 确保：
 - Node.js 版本 >= 18
@@ -473,17 +362,17 @@ const Match = {
 </details>
 
 <details>
-<summary><b>Q: 如何添加新的图表类型？</b></summary>
+<summary><b>📊 Q: 如何添加新的图表类型？</b></summary>
 
 1. 在 `src/charts/` 目录创建新组件
-2. 使用 Chart.js 或 Recharts 实现图表
+2. 使用 Recharts 实现图表
 3. 在需要的页面中导入使用
 4. 添加相应的测试用例
 
 </details>
 
 <details>
-<summary><b>Q: 如何贡献代码？</b></summary>
+<summary><b>🤝 Q: 如何贡献代码？</b></summary>
 
 1. Fork 本仓库
 2. 创建功能分支
@@ -542,15 +431,19 @@ git push origin feature/amazing-feature
 
 ## ⚠️ 免责声明
 
-### 项目性质
-
-本项目是一个**纯技术学习和代码研究项目**，旨在：
-
-- 📚 学习和实践 React、Firebase、Electron 等现代 Web 技术
-- 📊 研究数据可视化和统计分析算法
-- 🏗️ 探索前端工程化和架构设计
-
-### 重要声明
+<table>
+  <tr>
+    <td>
+      <h3>📋 项目性质</h3>
+      <p>本项目是一个<b>纯技术学习和代码研究项目</b>，旨在：</p>
+      <ul>
+        <li>📚 学习和实践 React、Firebase、Electron 等现代 Web 技术</li>
+        <li>📊 研究数据可视化和统计分析算法</li>
+        <li>🏗️ 探索前端工程化和架构设计</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
 | 声明 | 说明 |
 |:-----|:-----|
@@ -559,32 +452,20 @@ git push origin feature/amazing-feature
 | 🎮 **技术演示** | "积分"、"分数"等概念仅为技术演示用的虚拟数值 |
 | 📖 **学习目的** | 仅供个人学习、技术交流和代码研究使用 |
 
-### 使用限制
-
-- ⚖️ 使用者应遵守所在地区的法律法规
-- 🚫 本项目不鼓励、不支持任何形式的违法活动
-- 📋 作者不对使用者如何使用本代码承担任何责任
-
-### 责任限制
-
-> 本软件按"原样"提供，不提供任何明示或暗示的保证。在任何情况下，作者均不对因使用本软件而产生的任何直接、间接、偶然、特殊或后果性损害承担责任。
+> ⚖️ 使用者应遵守所在地区的法律法规。本项目不鼓励、不支持任何形式的违法活动。
 
 ---
 
 ## 📄 许可证
 
-本项目基于 [MIT License](LICENSE) 开源。
+<p>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License">
+  </a>
+</p>
 
 ```
-MIT License
-
-Copyright (c) 2025 d631015320
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software...
+MIT License © 2025 d631015320
 ```
 
 ---
@@ -597,19 +478,23 @@ copies of the Software...
   </a>
 </p>
 
-如有问题或建议，欢迎通过邮件联系！
-
 ---
 
-## 💖 致谢
+<p align="center">
+  <img width="40" src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Sparkling%20Heart.png" alt="Heart"/>
+</p>
+
+<h3 align="center">💖 致谢</h3>
 
 <p align="center">
   <b>特别鸣谢 Trigger 女士</b>
-  <br /><br />
-  🌟 本项目首席情感支持官<br />
-  👑 世界上最好看的大美女<br />
-  🎨 本项目 Logo 的提供者<br /><br />
-  <i>感谢不懂代码的你也愿意在无数个夜晚默默陪着我</i><br />
+  <br><br>
+  🌟 本项目首席情感支持官<br>
+  👑 世界上最好看的大美女<br>
+  🎨 本项目 Logo 的提供者
+  <br><br>
+  <i>感谢不懂代码的你也愿意在无数个夜晚默默陪着我</i>
+  <br>
   <b>爱你 (´∀｀)♡</b>
 </p>
 
@@ -620,5 +505,7 @@ copies of the Software...
 </p>
 
 <p align="center">
-  <sub>⭐ 如果这个项目对你有帮助，请给一个 Star！</sub>
+  <a href="https://github.com/d631015320/league-app">
+    <img src="https://img.shields.io/badge/⭐_如果有帮助请给个_Star-yellow?style=for-the-badge" alt="Star">
+  </a>
 </p>
