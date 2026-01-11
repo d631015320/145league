@@ -55,4 +55,4 @@ export const ERROR_MESSAGES = {
 /**
  * 网络超时时间 (毫秒)
  */
-export const NETWORK_TIMEOUT = 5000;
+export const NETWORK_TIMEOUT = 15000;

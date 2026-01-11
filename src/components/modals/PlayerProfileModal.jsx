@@ -4,7 +4,7 @@ import Avatar from '../common/Avatar';
 import ProRadarChart from '../../charts/ProRadarChart';
 import CareerChart from '../../charts/CareerChart';
 import HeadToHead from './HeadToHead';
-import { compressImage } from '../../lib/utils';
+import { compressImage, formatDate } from '../../lib/utils';
 import { GAMES_PER_SEASON, BADGE_CONFIG } from '../../constants';
 
 const PlayerProfileModal = ({ 
@@ -23,15 +23,16 @@ const PlayerProfileModal = ({
     const closeButtonRef = useRef(null);
 
     // --- 数据准备 ---
+    // history 已经按 created_at 降序排列，这里保持原顺序后反转为升序（用于图表）
     const playerMatches = useMemo(() => {
         if (!player) return [];
         return history
             .filter(m => m.results.some(r => r.name === player.name))
             .map(m => { 
                 const res = m.results.find(r => r.name === player.name); 
-                return { ...m, result: res, dateObj: new Date(m.date) }; 
+                return { ...m, result: res }; 
             })
-            .sort((a, b) => a.dateObj - b.dateObj);
+            .reverse(); // history 是降序，反转为升序
     }, [player, history]);
         
     const totalGames = playerMatches.length;
@@ -325,7 +326,7 @@ const PlayerProfileModal = ({
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                                             {displayedMatches.map(m => (
                                                 <tr key={m.id} onClick={() => onNavigateToMatch(m.id)} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer">
-                                                    <td className="px-4 py-2 text-slate-600 dark:text-slate-300 font-mono text-xs">{m.date}</td>
+                                                    <td className="px-4 py-2 text-slate-600 dark:text-slate-300 font-mono text-xs">{formatDate(m.date)}</td>
                                                     <td className="px-4 py-2 text-center"><span className={`inline-block w-6 h-6 leading-6 rounded-full text-xs font-bold ${m.result.rank === 1 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400' : m.result.rank <= 3 ? 'bg-slate-200 text-slate-700 dark:bg-slate-600/50 dark:text-white' : 'text-slate-400'}`}>{m.result.rank}</span></td>
                                                     <td className={`px-4 py-2 text-right font-mono ${m.result.chips >= 0 ? 'text-teal-500 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400'}`}>{m.result.chips > 0 ? '+' : ''}{m.result.chips}</td>
                                                     <td className="px-4 py-2 text-right font-bold text-slate-700 dark:text-white">+{m.result.score}</td>
