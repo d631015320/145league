@@ -338,6 +338,10 @@ Match {
 
 本项目基于 [MIT License](LICENSE) 开源。
 
+## 📬 联系方式
+
+如有问题或建议，欢迎联系：**dcy0728@foxmail.com**
+
 ## 💖 致谢
 特别鸣谢 Trigger女士
 
