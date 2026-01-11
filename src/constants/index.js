@@ -29,6 +29,21 @@ export const CHIP_EXCHANGE_RATE = 100;
 export const BASE_SCORES = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
 /**
+ * 出勤等级配置
+ * 用于活跃度系数计算和出勤勋章
+ */
+export const ATTENDANCE_TIERS = [
+  { minRate: 0.95, coeff: 1.00, name: '全勤王', icon: 'calendar-check', colorKey: 'gold', description: '出勤率≥95%，满勤不打折' },
+  { minRate: 0.85, coeff: 0.95, name: '铁人', icon: 'shield-check', colorKey: 'purple', description: '出勤率≥85%，战力系数95%' },
+  { minRate: 0.75, coeff: 0.90, name: '主力', icon: 'star', colorKey: 'blue', description: '出勤率≥75%，战力系数90%' },
+  { minRate: 0.65, coeff: 0.85, name: '核心', icon: 'users', colorKey: 'cyan', description: '出勤率≥65%，战力系数85%' },
+  { minRate: 0.55, coeff: 0.80, name: '常客', icon: 'user-check', colorKey: 'emerald', description: '出勤率≥55%，战力系数80%' },
+  { minRate: 0.45, coeff: 0.75, name: '活跃', icon: 'activity', colorKey: 'lime', description: '出勤率≥45%，战力系数75%' },
+  { minRate: 0.35, coeff: 0.70, name: '试水', icon: 'droplet', colorKey: 'orange', description: '出勤率≥35%，战力系数70%' },
+  { minRate: 0.00, coeff: 0.60, name: '游客', icon: 'eye', colorKey: 'slate', description: '出勤率<35%，战力系数60%' }
+];
+
+/**
  * Tab 配置
  */
 export const TAB_CONFIG = [

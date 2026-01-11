@@ -26,23 +26,22 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
       >
         <Icon name="chevron-left" className="w-4 h-4" />
       </button>
-      
+
       {pages.map(page => (
         <button
           key={page}
           onClick={() => onPageChange(page)}
-          className={`w-7 h-7 text-xs rounded focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-            page === currentPage
+          className={`w-7 h-7 text-xs rounded focus:outline-none focus:ring-2 focus:ring-emerald-500 ${page === currentPage
               ? 'bg-emerald-500 text-white font-bold'
               : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400'
-          }`}
+            }`}
           aria-label={`第 ${page} 页`}
           aria-current={page === currentPage ? 'page' : undefined}
         >
           {page}
         </button>
       ))}
-      
+
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
@@ -81,33 +80,31 @@ function MatchRow({ match, onNavigate }) {
       </td>
       {/* 排名 */}
       <td className="px-4 py-2 text-center">
-        <span className={`inline-block w-6 h-6 leading-6 rounded-full text-xs font-bold ${
-          match.result.rank === 1 
-            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400' 
-            : match.result.rank <= 3 
-              ? 'bg-slate-200 text-slate-700 dark:bg-slate-600/50 dark:text-white' 
+        <span className={`inline-block w-6 h-6 leading-6 rounded-full text-xs font-bold ${match.result.rank === 1
+            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400'
+            : match.result.rank <= 3
+              ? 'bg-slate-200 text-slate-700 dark:bg-slate-600/50 dark:text-white'
               : 'text-slate-400'
-        }`}>
+          }`}>
           {match.result.rank}
         </span>
       </td>
       {/* 积分 */}
-      <td className="px-4 py-2 text-right font-bold text-slate-700 dark:text-white">
+      <td className="px-4 py-2 text-right font-bold text-blue-600 dark:text-blue-400">
         +{match.result.score}
       </td>
       {/* 筹码 */}
-      <td className={`px-4 py-2 text-right font-mono ${
-        match.result.chips >= 0 
-          ? 'text-teal-500 dark:text-teal-400' 
+      <td className={`px-4 py-2 text-right font-mono ${match.result.chips >= 0
+          ? 'text-teal-500 dark:text-teal-400'
           : 'text-slate-500 dark:text-slate-400'
-      }`}>
+        }`}>
         {match.result.chips > 0 ? '+' : ''}{match.result.chips}
       </td>
       {/* 评分进度条 */}
       <td className="px-4 py-2 text-right">
         <div className="w-16 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full ml-auto overflow-hidden">
-          <div 
-            className="h-full bg-emerald-500" 
+          <div
+            className="h-full bg-emerald-500"
             style={{ width: `${Math.min((match.result.score / 25) * 100, 100)}%` }}
           />
         </div>
@@ -129,7 +126,7 @@ function MatchHistoryTable({ matches, onNavigateToMatch, pageSize = 10 }) {
 
   // 按时间倒序显示（最新的在前）
   const displayedMatches = [...matches].reverse()
-  
+
   // 计算分页
   const totalPages = Math.ceil(displayedMatches.length / pageSize)
   const startIndex = (currentPage - 1) * pageSize
@@ -150,7 +147,7 @@ function MatchHistoryTable({ matches, onNavigateToMatch, pageSize = 10 }) {
           共 {matches.length} 场
         </span>
       </div>
-      
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <caption className="sr-only">
@@ -167,10 +164,10 @@ function MatchHistoryTable({ matches, onNavigateToMatch, pageSize = 10 }) {
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
             {currentMatches.map(m => (
-              <MatchRow 
-                key={m.id} 
-                match={m} 
-                onNavigate={onNavigateToMatch} 
+              <MatchRow
+                key={m.id}
+                match={m}
+                onNavigate={onNavigateToMatch}
               />
             ))}
           </tbody>

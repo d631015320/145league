@@ -1,7 +1,7 @@
 // src/constants/badges.js
 // 徽章定义配置 - 声明式徽章系统
 
-import { BADGE_CONFIG, GAMES_PER_SEASON } from './index'
+import { BADGE_CONFIG, GAMES_PER_SEASON, ATTENDANCE_TIERS } from './index'
 
 /**
  * 徽章定义
@@ -9,24 +9,43 @@ import { BADGE_CONFIG, GAMES_PER_SEASON } from './index'
  * condition 函数接收 context 对象，返回 { earned, count?, detail? }
  */
 export const BADGE_DEFINITIONS = [
-  // === 赛季徽章（动态生成） ===
+  // === 赛季出勤勋章（统一处理所有出勤等级） ===
   {
     id: 'season-attendance',
-    name: '全勤王',
-    icon: 'calendar-check',
+    name: '出勤勋章',
+    icon: 'calendar',
     colorKey: 'blue',
-    description: '赛季保持全勤',
-    // 特殊标记：需要按赛季动态生成
+    description: '根据赛季出勤率获得的称号',
     isSeasonBadge: true,
     condition: (context, seasonKey, matches) => {
+      // 计算该赛季的出勤率
       const myMatchesInSeason = matches.filter(m => 
         m.results.some(r => r.name === context.player.name)
       ).length
       const totalMatchesInSeason = matches.length
-      if (totalMatchesInSeason > 0 && myMatchesInSeason === totalMatchesInSeason) {
+      
+      if (totalMatchesInSeason === 0 || myMatchesInSeason === 0) return { earned: false }
+      
+      const attendanceRate = myMatchesInSeason / totalMatchesInSeason
+      
+      // 找到对应的出勤等级
+      let tier = ATTENDANCE_TIERS[ATTENDANCE_TIERS.length - 1]
+      for (const t of ATTENDANCE_TIERS) {
+        if (attendanceRate >= t.minRate) {
+          tier = t
+          break
+        }
+      }
+      
+      // 只有达到"常客"及以上才显示勋章（出勤率≥55%）
+      if (attendanceRate >= 0.55) {
         return {
           earned: true,
-          detail: `${seasonKey} 赛季保持全勤 (${myMatchesInSeason}/${totalMatchesInSeason})`
+          detail: `${seasonKey} ${tier.name} (${myMatchesInSeason}/${totalMatchesInSeason}场，${(attendanceRate * 100).toFixed(0)}%出勤)`,
+          // 动态覆盖徽章属性，名称不带赛季前缀（useBadges会自动加）
+          overrideName: tier.name,
+          overrideIcon: tier.icon,
+          overrideColorKey: tier.colorKey
         }
       }
       return { earned: false }
@@ -102,19 +121,31 @@ export const BADGE_DEFINITIONS = [
     }
   },
 
-  // === 生涯徽章 ===
+  // === 赛季勋章（原生涯勋章，现按赛季计算） ===
   {
     id: 'ruler',
     name: '统治者',
     icon: 'crown',
     colorKey: 'gold',
-    description: `生涯胜率超过 ${BADGE_CONFIG.RULER_WIN_RATE * 100}%`,
-    condition: (context) => {
-      const { totalGames, winRate } = context
-      if (totalGames >= 5 && winRate >= BADGE_CONFIG.RULER_WIN_RATE) {
+    description: `赛季胜率超过 ${BADGE_CONFIG.RULER_WIN_RATE * 100}%`,
+    isSeasonBadge: true,
+    condition: (context, seasonKey, matches) => {
+      // 计算该赛季的胜率
+      const myMatches = matches.filter(m => 
+        m.results.some(r => r.name === context.player.name)
+      )
+      if (myMatches.length < 3) return { earned: false }
+      
+      const wins = myMatches.filter(m => {
+        const result = m.results.find(r => r.name === context.player.name)
+        return result && result.rank === 1
+      }).length
+      const winRate = wins / myMatches.length
+      
+      if (winRate >= BADGE_CONFIG.RULER_WIN_RATE) {
         return {
           earned: true,
-          detail: `生涯胜率 ${(winRate * 100).toFixed(1)}%`
+          detail: `${seasonKey} 胜率 ${(winRate * 100).toFixed(1)}% (${wins}/${myMatches.length}场)`
         }
       }
       return { earned: false }
@@ -126,15 +157,17 @@ export const BADGE_DEFINITIONS = [
     icon: 'heart-handshake',
     colorKey: 'emerald',
     description: `单场"贡献"超过 ${BADGE_CONFIG.CHARITY_THRESHOLD} 筹码`,
-    condition: (context) => {
-      const count = context.playerMatches.filter(m => 
-        m.result.chips <= -BADGE_CONFIG.CHARITY_THRESHOLD
-      ).length
+    isSeasonBadge: true,
+    condition: (context, seasonKey, matches) => {
+      const count = matches.filter(m => {
+        const result = m.results.find(r => r.name === context.player.name)
+        return result && parseFloat(result.chips) <= -BADGE_CONFIG.CHARITY_THRESHOLD
+      }).length
       if (count > 0) {
         return {
           earned: true,
           count,
-          detail: `累计 ${count} 次单场"贡献"超过 ${BADGE_CONFIG.CHARITY_THRESHOLD} 筹码`
+          detail: `${seasonKey} ${count} 次单场"贡献"超过 ${BADGE_CONFIG.CHARITY_THRESHOLD} 筹码`
         }
       }
       return { earned: false }
@@ -146,15 +179,17 @@ export const BADGE_DEFINITIONS = [
     icon: 'zap',
     colorKey: 'orange',
     description: `单场狂揽 ${BADGE_CONFIG.NERVE_KNIFE_LIMIT}+ 筹码`,
-    condition: (context) => {
-      const count = context.playerMatches.filter(m => 
-        m.result.chips >= BADGE_CONFIG.NERVE_KNIFE_LIMIT
-      ).length
+    isSeasonBadge: true,
+    condition: (context, seasonKey, matches) => {
+      const count = matches.filter(m => {
+        const result = m.results.find(r => r.name === context.player.name)
+        return result && parseFloat(result.chips) >= BADGE_CONFIG.NERVE_KNIFE_LIMIT
+      }).length
       if (count > 0) {
         return {
           earned: true,
           count,
-          detail: `累计 ${count} 次单场狂揽 ${BADGE_CONFIG.NERVE_KNIFE_LIMIT}+ 筹码`
+          detail: `${seasonKey} ${count} 次单场狂揽 ${BADGE_CONFIG.NERVE_KNIFE_LIMIT}+ 筹码`
         }
       }
       return { earned: false }
@@ -165,20 +200,23 @@ export const BADGE_DEFINITIONS = [
     name: '天选之子',
     icon: 'clover',
     colorKey: 'pink',
-    description: '获得运气王次数全联盟第一',
-    condition: (context) => {
-      const { player, history } = context
+    description: '赛季运气王次数第一',
+    isSeasonBadge: true,
+    condition: (context, seasonKey, matches) => {
+      // 计算该赛季各玩家的运气王次数
       const luckyCounts = {}
-      history.forEach(m => {
+      matches.forEach(m => {
         if (m.luckyPlayer) {
           luckyCounts[m.luckyPlayer] = (luckyCounts[m.luckyPlayer] || 0) + 1
         }
       })
+      const myLuckyCount = luckyCounts[context.player.name] || 0
       const maxLucky = Math.max(0, ...Object.values(luckyCounts))
-      if (player.luckyCount > 0 && player.luckyCount >= maxLucky) {
+      
+      if (myLuckyCount > 0 && myLuckyCount >= maxLucky) {
         return {
           earned: true,
-          detail: `获得运气王 ${player.luckyCount} 次，全联盟第一`
+          detail: `${seasonKey} 运气王 ${myLuckyCount} 次，赛季第一`
         }
       }
       return { earned: false }
@@ -189,12 +227,16 @@ export const BADGE_DEFINITIONS = [
     name: '老兵',
     icon: 'shield',
     colorKey: 'blue',
-    description: `参赛场次达到 ${BADGE_CONFIG.VETERAN_GAMES} 场以上`,
-    condition: (context) => {
-      if (context.totalGames >= BADGE_CONFIG.VETERAN_GAMES) {
+    description: `赛季参赛场次达到 ${BADGE_CONFIG.VETERAN_GAMES} 场以上`,
+    isSeasonBadge: true,
+    condition: (context, seasonKey, matches) => {
+      const myMatches = matches.filter(m => 
+        m.results.some(r => r.name === context.player.name)
+      ).length
+      if (myMatches >= BADGE_CONFIG.VETERAN_GAMES) {
         return {
           earned: true,
-          detail: `已参赛 ${context.totalGames} 场`
+          detail: `${seasonKey} 参赛 ${myMatches} 场`
         }
       }
       return { earned: false }
@@ -205,14 +247,18 @@ export const BADGE_DEFINITIONS = [
     name: '意难平',
     icon: 'divide',
     colorKey: 'slate',
-    description: `累计获得 ${BADGE_CONFIG.SECOND_PLACE_COUNT} 次亚军`,
-    condition: (context) => {
-      const count = context.playerMatches.filter(m => m.result.rank === 2).length
+    description: `赛季累计获得 ${BADGE_CONFIG.SECOND_PLACE_COUNT} 次亚军`,
+    isSeasonBadge: true,
+    condition: (context, seasonKey, matches) => {
+      const count = matches.filter(m => {
+        const result = m.results.find(r => r.name === context.player.name)
+        return result && result.rank === 2
+      }).length
       if (count >= BADGE_CONFIG.SECOND_PLACE_COUNT) {
         return {
           earned: true,
           count,
-          detail: `累计获得 ${count} 次亚军`
+          detail: `${seasonKey} ${count} 次亚军`
         }
       }
       return { earned: false }
@@ -224,19 +270,21 @@ export const BADGE_DEFINITIONS = [
     icon: 'trending-up',
     colorKey: 'cyan',
     description: `单场买入超 ${BADGE_CONFIG.COMEBACK_BUYIN_THRESHOLD} 仍盈利`,
-    condition: (context) => {
-      const count = context.playerMatches.filter(m => {
-        if (!m.transactions) return false
+    isSeasonBadge: true,
+    condition: (context, seasonKey, matches) => {
+      const count = matches.filter(m => {
+        const result = m.results.find(r => r.name === context.player.name)
+        if (!result || !m.transactions) return false
         const myBuyIn = m.transactions
           .filter(t => t.buyer === context.player.name)
           .reduce((sum, t) => sum + parseFloat(t.amount), 0)
-        return myBuyIn >= BADGE_CONFIG.COMEBACK_BUYIN_THRESHOLD && m.result.chips > 0
+        return myBuyIn >= BADGE_CONFIG.COMEBACK_BUYIN_THRESHOLD && parseFloat(result.chips) > 0
       }).length
       if (count > 0) {
         return {
           earned: true,
           count,
-          detail: `累计 ${count} 次单场买入超 ${BADGE_CONFIG.COMEBACK_BUYIN_THRESHOLD} 仍盈利`
+          detail: `${seasonKey} ${count} 次买入超 ${BADGE_CONFIG.COMEBACK_BUYIN_THRESHOLD} 仍盈利`
         }
       }
       return { earned: false }

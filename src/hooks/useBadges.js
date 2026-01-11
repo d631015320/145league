@@ -20,19 +20,25 @@ function evaluateBadge(definition, context, seasonKey = null, seasonMatches = nu
       : definition.condition(context)
 
     if (result.earned) {
+      // 支持动态覆盖徽章属性（用于出勤称号等动态徽章）
+      const finalName = result.overrideName || definition.name
+      const finalIcon = result.overrideIcon || definition.icon
+      const finalColorKey = result.overrideColorKey || definition.colorKey
+
       // 构建徽章名称（赛季徽章加前缀，可叠加徽章加次数）
-      let name = definition.name
+      let name = finalName
       if (seasonKey) {
-        name = `${seasonKey} ${definition.name}`
-      } else if (result.count > 1) {
-        name = `${definition.name} x${result.count}`
+        name = `${seasonKey} ${finalName}`
+      }
+      if (result.count > 1) {
+        name = `${name} x${result.count}`
       }
 
       return {
         id: seasonKey ? `${definition.id}-${seasonKey}` : definition.id,
         name,
-        icon: definition.icon,
-        color: getBadgeColor(definition.colorKey),
+        icon: finalIcon,
+        color: getBadgeColor(finalColorKey),
         desc: result.detail || definition.description
       }
     }

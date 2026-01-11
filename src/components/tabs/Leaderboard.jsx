@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import Icon from '../common/Icon';
 import Avatar from '../common/Avatar';
 import Sparkline from '../../charts/Sparkline';
@@ -22,6 +22,7 @@ const Leaderboard = ({
     availableSeasons,
     GAMES_PER_SEASON
 }) => {
+    const [showPowerHelp, setShowPowerHelp] = useState(false)
     const isSorted = (k) => sortConfig.key === k;
     const getSortIcon = (k) => {
         if (!isSorted(k)) return <Icon name="chevrons-up-down" className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />;
@@ -221,7 +222,44 @@ const Leaderboard = ({
                             <th className="px-4 py-3 w-14 text-center border-b border-slate-200 dark:border-slate-800">#</th>
                             <th className="px-4 py-3 text-left border-b border-slate-200 dark:border-slate-800 min-w-[160px]">玩家</th>
                             <th className={sortableHeaderClass('powerScore', 'center')} onClick={() => onSort('powerScore')}>
-                                <span className="inline-flex items-center gap-1 justify-center">战力 {getSortIcon('powerScore')}</span>
+                                <span className="inline-flex items-center gap-1 justify-center relative">
+                                    战力 {getSortIcon('powerScore')}
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setShowPowerHelp(!showPowerHelp) }}
+                                        className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                                        aria-label="查看战力说明"
+                                    >
+                                        <Icon name="help-circle" className="w-3 h-3 opacity-50 hover:opacity-100" />
+                                    </button>
+                                    {/* 战力说明气泡 */}
+                                    {showPowerHelp && (
+                                        <>
+                                            <div className="fixed inset-0 z-[100]" onClick={(e) => { e.stopPropagation(); setShowPowerHelp(false) }} />
+                                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-[110] w-96 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 p-5 text-center normal-case tracking-normal">
+                                                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white dark:bg-slate-800 border-l border-t border-slate-200 dark:border-slate-700 rotate-45" />
+                                                <h4 className="font-bold text-slate-800 dark:text-white mb-3 flex items-center justify-center gap-2 text-base">
+                                                    <Icon name="zap" className="w-4 h-4 text-purple-500" />
+                                                    战力是怎么算的？
+                                                </h4>
+                                                <div className="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                                                    <p>综合评估玩家实力，不只看谁赢得多或筹码多。</p>
+                                                    <ul className="space-y-1.5 inline-block text-left">
+                                                        <li>🏆 <strong>统治</strong> 21% - 拿第一的能力</li>
+                                                        <li>📊 <strong>效率</strong> 21% - 得分能力</li>
+                                                        <li>💰 <strong>掠夺</strong> 19% - 赢筹码能力</li>
+                                                        <li>⚔️ <strong>击败</strong> 16% - 击败对手比例</li>
+                                                        <li>🎯 <strong>胜场</strong> 13% - 赢码场次比例</li>
+                                                        <li>🌟 <strong>MVP</strong> 10% - 公认实力</li>
+                                                    </ul>
+                                                    <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3">
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400">💡 打得少会"保守估计"，出勤低会打折扣。</p>
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">多打、打好、稳定发挥 = 高战力 💪</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </span>
                             </th>
                             <th className={sortableHeaderClass('totalScore', 'center')} onClick={() => onSort('totalScore')}>
                                 <span className="inline-flex items-center gap-1 justify-center">总积分 {getSortIcon('totalScore')}</span>

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import Chart from 'chart.js/auto'; // 引入我们刚安装的库
 
 const ProRadarChart = ({ stats, compareStats, compareName, isDark }) => {
@@ -58,14 +58,15 @@ const ProRadarChart = ({ stats, compareStats, compareName, isDark }) => {
                         grid: { color: gridColor }, 
                         pointLabels: { 
                             color: textColor, 
-                            font: { size: 11, family: 'Inter', weight: 'bold' } 
+                            font: { size: 10, family: 'Inter', weight: 'bold' },
+                            padding: 8
                         }, 
                         suggestedMin: 0,
-                        suggestedMax: 10,
+                        suggestedMax: 100,
                         min: 0,
-                        max: 10,
+                        max: 100,
                         ticks: { 
-                            stepSize: 2,
+                            stepSize: 20,
                             display: false, 
                             backdropColor: 'transparent'
                         } 

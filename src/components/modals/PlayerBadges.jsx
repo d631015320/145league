@@ -12,17 +12,18 @@ function BadgeTooltip({ badge, isVisible, position: _position }) {
 
   return (
     <div
-      className="absolute z-50 px-3 py-2 text-xs bg-slate-900 dark:bg-slate-700 text-white rounded-lg shadow-lg max-w-xs whitespace-normal"
+      className="absolute z-50 px-3 py-2 text-xs bg-slate-900 dark:bg-slate-700 text-white rounded-lg shadow-lg whitespace-nowrap"
       style={{
         bottom: '100%',
         left: '50%',
         transform: 'translateX(-50%)',
-        marginBottom: '8px'
+        marginBottom: '8px',
+        minWidth: '120px'
       }}
       role="tooltip"
     >
       <div className="font-bold mb-1">{badge.name}</div>
-      <div className="text-slate-300">{badge.desc}</div>
+      <div className="text-slate-300 whitespace-normal" style={{ maxWidth: '200px' }}>{badge.desc}</div>
       {/* 箭头 */}
       <div
         className="absolute w-2 h-2 bg-slate-900 dark:bg-slate-700 rotate-45"

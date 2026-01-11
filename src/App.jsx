@@ -382,6 +382,8 @@ const App = () => {
             allPlayerNames={allPlayerNames}
             playerProfiles={playerProfiles}
             leaderboardData={statsData.leaderboardData}
+            seasonTotalGames={statsData.seasonStats.totalGames}
+            selectedSeason={selectedSeason}
           />
         )}
 
