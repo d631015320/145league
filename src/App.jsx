@@ -220,7 +220,7 @@ const App = () => {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen pb-20 transition-colors duration-300">
+      <div className="min-h-screen pb-20 md:pb-0 transition-colors duration-300">
         {/* 顶部导航 */}
         <nav className="glass-header sticky top-0 z-50 transition-all duration-300" role="navigation" aria-label="主导航">
           <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -407,28 +407,32 @@ const App = () => {
           }
         />
 
-        {/* 移动端底部 Tab */}
+        {/* 移动端底部导航栏 - 增强版 */}
         <nav 
-          className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-[#0b0e14]/90 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 p-2 z-50 flex justify-around safe-area-bottom"
+          className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-[#0b0e14]/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 z-50 safe-area-bottom"
           role="navigation"
           aria-label="移动端主导航"
         >
-          {TAB_CONFIG.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              aria-label={`切换到${t.label}页面`}
-              aria-current={activeTab === t.id ? 'page' : undefined}
-              className={`p-3 rounded-xl flex flex-col items-center gap-1 ${
-                activeTab === t.id
-                  ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/10'
-                  : 'text-slate-400 dark:text-slate-500'
-              }`}
-            >
-              <Icon name={t.icon} className="w-6 h-6" aria-hidden="true" />
-              <span className="sr-only">{t.label}</span>
-            </button>
-          ))}
+          <div className="flex justify-around items-center h-16 px-1">
+            {TAB_CONFIG.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                aria-label={`切换到${t.label}页面`}
+                aria-current={activeTab === t.id ? 'page' : undefined}
+                className={`nav-item flex-1 flex flex-col items-center justify-center min-h-[44px] min-w-[44px] py-2 mx-0.5 rounded-xl transition-all touch-feedback ${
+                  activeTab === t.id
+                    ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
+                    : 'text-slate-400 dark:text-slate-500 active:bg-slate-100 dark:active:bg-slate-800'
+                }`}
+              >
+                <Icon name={t.icon} className="w-6 h-6" aria-hidden="true" />
+                <span className={`text-[10px] font-medium mt-1 ${activeTab === t.id ? 'font-bold' : ''}`}>
+                  {t.label}
+                </span>
+              </button>
+            ))}
+          </div>
         </nav>
       </div>
     </ErrorBoundary>

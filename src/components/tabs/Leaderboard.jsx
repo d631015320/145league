@@ -95,17 +95,17 @@ const Leaderboard = ({
 
     return (
         <div className="glass-panel rounded-2xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-700/50">
-            {/* 精简工具栏 */}
-            <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50 dark:bg-slate-900/50">
-                <div className="flex flex-wrap gap-3">
-                    <div className="relative min-w-[160px]">
+            {/* 精简工具栏 - 移动端优化 */}
+            <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-700/50 flex flex-col sm:flex-row flex-wrap justify-between items-stretch sm:items-center gap-3 bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                    <div className="relative w-full sm:min-w-[160px] sm:w-auto">
                         <label htmlFor="season-select-leaderboard" className="sr-only">选择赛季</label>
                         <select 
                             id="season-select-leaderboard"
                             value={selectedSeason} 
                             onChange={e => onSeasonChange(e.target.value)} 
                             aria-label="选择赛季筛选排行榜"
-                            className="input-pro w-full pl-3 pr-8 py-2 rounded-lg text-sm bg-white dark:bg-slate-800/50 font-bold appearance-none cursor-pointer"
+                            className="input-pro w-full pl-3 pr-8 py-2 rounded-lg text-sm bg-white dark:bg-slate-800/50 font-bold appearance-none cursor-pointer min-h-[44px]"
                         >
                             <option value="all">🏆 全赛季总榜</option>
                             {availableSeasons.map(s => {
@@ -120,7 +120,7 @@ const Leaderboard = ({
                         </div>
                     </div>
                     
-                    <div className="relative w-56 group">
+                    <div className="relative w-full sm:w-56 group">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" aria-hidden="true">
                             <Icon name="search" className="h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors"/>
                         </div>
@@ -132,7 +132,7 @@ const Leaderboard = ({
                             value={searchTerm} 
                             onChange={(e) => onSearchChange(e.target.value)} 
                             aria-label="搜索玩家名称"
-                            className="input-pro w-full pl-10 pr-4 py-2 rounded-lg text-sm bg-white dark:bg-slate-800/50" 
+                            className="input-pro w-full pl-10 pr-4 py-2 rounded-lg text-sm bg-white dark:bg-slate-800/50 min-h-[44px]" 
                         />
                     </div>
                 </div>
@@ -141,7 +141,7 @@ const Leaderboard = ({
                     onClick={toggleSelectionMode} 
                     aria-label={isSelectionMode ? '退出多选模式' : '进入多选模式'}
                     aria-pressed={isSelectionMode}
-                    className={`p-2 rounded-lg border transition-colors ${isSelectionMode 
+                    className={`p-2 rounded-lg border transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-feedback ${isSelectionMode 
                         ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-500 text-indigo-600 dark:text-indigo-400' 
                         : 'bg-white dark:bg-transparent border-slate-200 dark:border-slate-700 text-slate-400 hover:border-slate-400'}`}
                     title="多选模式"
@@ -174,18 +174,18 @@ const Leaderboard = ({
                 </div>
             )}
 
-            {/* 移动端卡片视图 */}
+            {/* 移动端卡片视图 - 优化触摸目标 */}
             <div className="block md:hidden bg-slate-50 dark:bg-[#0b0e14]">
                 {filteredData.map((p, idx) => (
                     <div 
                         key={p.name} 
                         onClick={() => isSelectionMode ? togglePlayerSelection(p.name) : onPlayerClick(p)} 
-                        className={`p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-4 active:bg-slate-100 dark:active:bg-slate-800/50 transition-colors ${selectedPlayerNames.has(p.name) ? 'bg-indigo-50 dark:bg-indigo-900/10' : ''}`}
+                        className={`p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-4 transition-colors touch-feedback min-h-[72px] ${selectedPlayerNames.has(p.name) ? 'bg-indigo-50 dark:bg-indigo-900/10' : ''}`}
                     >
                         <div className="flex flex-col items-center gap-1 min-w-[3rem]">
                             {isSelectionMode ? 
-                                <input type="checkbox" checked={selectedPlayerNames.has(p.name)} readOnly className="accent-indigo-500 w-5 h-5" /> : 
-                                <span className={`inline-block w-6 h-6 leading-6 text-center rounded text-[10px] font-bold ${idx===0?'rank-badge-1':idx===1?'rank-badge-2':idx===2?'rank-badge-3':'text-slate-400 bg-slate-200 dark:bg-slate-700'}`}>{idx+1}</span>
+                                <input type="checkbox" checked={selectedPlayerNames.has(p.name)} readOnly className="accent-indigo-500 w-6 h-6" /> : 
+                                <span className={`inline-block w-7 h-7 leading-7 text-center rounded text-xs font-bold ${idx===0?'rank-badge-1':idx===1?'rank-badge-2':idx===2?'rank-badge-3':'text-slate-400 bg-slate-200 dark:bg-slate-700'}`}>{idx+1}</span>
                             }
                             <Avatar name={p.name} src={p.avatar?.avatar || p.avatar} size="md" bordered={false} className="shadow-sm" />
                         </div>
@@ -209,7 +209,7 @@ const Leaderboard = ({
                                 </div>
                             </div>
                         </div>
-                        <Icon name="chevron-right" className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                        <Icon name="chevron-right" className="w-5 h-5 text-slate-300 flex-shrink-0" />
                     </div>
                 ))}
             </div>

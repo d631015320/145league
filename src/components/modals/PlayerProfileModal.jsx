@@ -13,6 +13,7 @@ import { compressImage } from '../../lib/utils'
 import usePlayerMatches from '../../hooks/usePlayerMatches'
 import useBadges from '../../hooks/useBadges'
 import { usePlayerRadarStats } from '../../hooks/useRadarStats'
+import { useIsMobile } from '../../hooks/useMediaQuery'
 
 const PlayerProfileModal = ({
   player, history, onClose, onUploadAvatar, leagueStats,
@@ -23,6 +24,9 @@ const PlayerProfileModal = ({
   const [showPowerHelp, setShowPowerHelp] = useState(false)
   const modalRef = useRef(null)
   const closeButtonRef = useRef(null)
+  
+  // 响应式检测
+  const isMobile = useIsMobile()
 
   // 使用自定义 Hooks（传入赛季筛选）
   const { playerMatches, totalGames, wins } = usePlayerMatches(player, history, selectedSeason)
@@ -84,7 +88,7 @@ const PlayerProfileModal = ({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md animate-modal"
+      className={`fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md animate-modal`}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -92,28 +96,44 @@ const PlayerProfileModal = ({
     >
       <div
         ref={modalRef}
-        className="glass-panel w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-2xl shadow-2xl relative bg-white/90 dark:bg-slate-900/90"
+        className={`glass-panel w-full overflow-y-auto shadow-2xl relative bg-white/90 dark:bg-slate-900/90 scroll-touch ${
+          isMobile 
+            ? 'h-[95vh] rounded-t-2xl' 
+            : 'max-w-4xl max-h-[95vh] rounded-2xl'
+        }`}
         onClick={e => e.stopPropagation()}
       >
+        {/* 移动端拖拽指示器 */}
+        {isMobile && (
+          <div className="sticky top-0 z-20 flex justify-center py-3 bg-gradient-to-b from-white/90 dark:from-slate-900/90 to-transparent">
+            <div className="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full" />
+          </div>
+        )}
+        
         {/* 顶部背景条 */}
-        <div className="h-32 bg-gradient-to-r from-emerald-600 to-teal-700 dark:from-emerald-900 dark:to-slate-900 relative overflow-hidden">
+        <div className={`bg-gradient-to-r from-emerald-600 to-teal-700 dark:from-emerald-900 dark:to-slate-900 relative overflow-hidden ${isMobile ? 'h-24' : 'h-32'}`}>
           <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/carbon-fibre.png')" }} />
           <button
             ref={closeButtonRef}
             onClick={onClose}
             aria-label="关闭玩家档案"
-            className="absolute top-4 right-4 p-2 rounded-full bg-black/20 text-white hover:bg-white/20 transition-colors z-10 focus:outline-none focus:ring-2 focus:ring-white"
+            className="absolute top-4 right-4 p-2 rounded-full bg-black/20 text-white hover:bg-white/20 transition-colors z-10 focus:outline-none focus:ring-2 focus:ring-white min-w-[44px] min-h-[44px] flex items-center justify-center touch-feedback"
           >
             <Icon name="x" className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="px-8 pb-8 -mt-16 relative">
-          {/* 头部信息区 */}
-          <div className="flex flex-col md:flex-row gap-6 items-start">
+        <div className={`relative ${isMobile ? 'px-4 pb-6 -mt-12' : 'px-8 pb-8 -mt-16'}`}>
+          {/* 头部信息区 - 移动端垂直布局 */}
+          <div className={`flex gap-4 md:gap-6 ${isMobile ? 'flex-col items-center text-center' : 'flex-row items-start'}`}>
             {/* 头像 */}
-            <div className="relative group cursor-pointer">
-              <Avatar name={player.name} src={player.avatar?.avatar || player.avatar} size="xxl" className="border-4 border-white dark:border-[#0b0e14] shadow-2xl" />
+            <div className="relative group cursor-pointer flex-shrink-0">
+              <Avatar 
+                name={player.name} 
+                src={player.avatar?.avatar || player.avatar} 
+                size={isMobile ? 'xl' : 'xxl'} 
+                className={`border-4 border-white dark:border-[#0b0e14] shadow-2xl`} 
+              />
               <label className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-all backdrop-blur-sm">
                 <Icon name="camera" className="text-white w-8 h-8" />
                 <span className="sr-only">上传头像</span>
@@ -122,12 +142,12 @@ const PlayerProfileModal = ({
             </div>
 
             {/* 玩家信息 */}
-            <div className="flex-1 pt-16 md:pt-0 md:mt-16">
-              <div className="flex flex-wrap items-center gap-3 mb-1">
-                <h2 id="player-profile-title" className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{player.name}</h2>
+            <div className={`flex-1 ${isMobile ? 'pt-2' : 'pt-0 md:mt-16'}`}>
+              <div className={`flex flex-wrap items-center gap-3 mb-1 ${isMobile ? 'justify-center' : ''}`}>
+                <h2 id="player-profile-title" className={`font-black text-slate-800 dark:text-white tracking-tight ${isMobile ? 'text-2xl' : 'text-3xl'}`}>{player.name}</h2>
                 <button
                   onClick={() => setShowPowerHelp(true)}
-                  className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg shadow-indigo-500/20 hover:from-indigo-600 hover:to-purple-600 transition-all cursor-pointer flex items-center gap-1"
+                  className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg shadow-indigo-500/20 hover:from-indigo-600 hover:to-purple-600 transition-all cursor-pointer flex items-center gap-1 min-h-[32px] touch-feedback"
                   aria-label="查看战力说明"
                 >
                   战力 {Math.round(powerScore)}
@@ -135,7 +155,7 @@ const PlayerProfileModal = ({
                 </button>
               </div>
               <PlayerBadges badges={badges} />
-              <div className="flex flex-wrap gap-2 text-sm text-slate-500 dark:text-slate-400">
+              <div className={`flex flex-wrap gap-2 text-sm text-slate-500 dark:text-slate-400 ${isMobile ? 'justify-center' : ''}`}>
                 {player.votedMvpCount > 0 && (
                   <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-bold">
                     <Icon name="star" className="w-3 h-3 fill-current" /> {player.votedMvpCount} MVP
@@ -151,8 +171,9 @@ const PlayerProfileModal = ({
               </div>
             </div>
 
-            {/* 顶部数据统计 - 六维实际值 3×2 表格 */}
-            <div className="hidden md:grid grid-cols-3 gap-x-6 gap-y-2 mt-20">
+            {/* 顶部数据统计 - 移动端隐藏，桌面端显示 */}
+            {!isMobile && (
+              <div className="hidden md:grid grid-cols-3 gap-x-6 gap-y-2 mt-20">
               {radarStats.map(stat => {
                 // 维度颜色映射（和进度条一致，light模式加深）
                 const colorMap = {
@@ -173,11 +194,12 @@ const PlayerProfileModal = ({
                   </div>
                 )
               })}
-            </div>
+              </div>
+            )}
           </div>
 
-          {/* 主内容区 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+          {/* 主内容区 - 移动端单列，桌面端双列 */}
+          <div className={`grid gap-6 mt-6 md:mt-8 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
             {/* 左侧：雷达图 + 对比 */}
             <div className="space-y-6">
               <PlayerRadarSection
@@ -188,6 +210,7 @@ const PlayerProfileModal = ({
                 allPlayerNames={allPlayerNames}
                 playerName={player.name}
                 isDark={isDark}
+                isMobile={isMobile}
               />
               <HeadToHead player={player} history={history} leaderboardData={leaderboardData} />
             </div>
@@ -195,7 +218,7 @@ const PlayerProfileModal = ({
             {/* 右侧：走势图 + 战绩表 */}
             <div className="space-y-6">
               <CareerChart history={playerMatches} isDark={isDark} />
-              <MatchHistoryTable matches={playerMatches} onNavigateToMatch={onNavigateToMatch} />
+              <MatchHistoryTable matches={playerMatches} onNavigateToMatch={onNavigateToMatch} isMobile={isMobile} />
             </div>
           </div>
         </div>
