@@ -1,28 +1,28 @@
 <p align="center">
-  <img src="public/favicon.png" alt="145 League Logo" width="120" height="120">
+  <img src="public/favicon.png" alt="145 League Logo" width="120" height="120">
 </p>
 
 <h1 align="center">145 联赛管理系统</h1>
 
 <p align="center">
-  <strong>专业级扑克联赛数据管理与分析平台</strong>
+  <strong>专业级扑克联赛数据管理与分析平台</strong>
 </p>
 
 <p align="center">
-  <a href="#功能特性">功能特性</a> •
-  <a href="#快速开始">快速开始</a> •
-  <a href="#系统架构">系统架构</a> •
-  <a href="#开发指南">开发指南</a> •
-  <a href="#贡献指南">贡献指南</a>
+  <a href="#功能特性">功能特性</a> •
+  <a href="#快速开始">快速开始</a> •
+  <a href="#系统架构">系统架构</a> •
+  <a href="#开发指南">开发指南</a> •
+  <a href="#贡献指南">贡献指南</a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/React-19.2.0-61DAFB?style=flat-square&logo=react" alt="React">
-  <img src="https://img.shields.io/badge/Vite-7.2.4-646CFF?style=flat-square&logo=vite" alt="Vite">
-  <img src="https://img.shields.io/badge/Tailwind-3.4.17-38B2AC?style=flat-square&logo=tailwind-css" alt="Tailwind">
-  <img src="https://img.shields.io/badge/Firebase-12.7.0-FFCA28?style=flat-square&logo=firebase" alt="Firebase">
-  <img src="https://img.shields.io/badge/Electron-39.2.7-47848F?style=flat-square&logo=electron" alt="Electron">
-  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License">
+  <img src="https://img.shields.io/badge/React-19.2.0-61DAFB?style=flat-square&logo=react" alt="React">
+  <img src="https://img.shields.io/badge/Vite-7.2.4-646CFF?style=flat-square&logo=vite" alt="Vite">
+  <img src="https://img.shields.io/badge/Tailwind-3.4.17-38B2AC?style=flat-square&logo=tailwind-css" alt="Tailwind">
+  <img src="https://img.shields.io/badge/Firebase-12.7.0-FFCA28?style=flat-square&logo=firebase" alt="Firebase">
+  <img src="https://img.shields.io/badge/Electron-39.2.7-47848F?style=flat-square&logo=electron" alt="Electron">
+  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License">
 </p>
 
 ---
@@ -109,12 +109,12 @@ cp .env.example .env.local
 ```javascript
 // src/lib/firebase.js
 const firebaseConfig = {
-  apiKey: "your-api-key",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "your-sender-id",
-  appId: "your-app-id"
+  apiKey: "your-api-key",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "your-sender-id",
+  appId: "your-app-id"
 }
 ```
 
@@ -156,29 +156,29 @@ npm run lint
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Presentation Layer                        │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │   Tabs      │  │   Modals    │  │   Charts    │              │
-│  │  Components │  │  Components │  │  Components │              │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘              │
+│                        Presentation Layer                        │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
+│  │   Tabs      │  │   Modals    │  │   Charts    │              │
+│  │  Components │  │  Components │  │  Components │              │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘              │
 └─────────┼────────────────┼────────────────┼─────────────────────┘
-          │                │                │
+          │                │                │
 ┌─────────┼────────────────┼────────────────┼─────────────────────┐
-│         ▼                ▼                ▼                      │
-│                    Business Logic Layer                          │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │                    Custom Hooks                          │    │
-│  │  useStatsCalculator │ useLeagueStats │ useFirebaseData  │    │
-│  └─────────────────────────────┬───────────────────────────┘    │
+│         ▼                ▼                ▼                      │
+│                    Business Logic Layer                          │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                    Custom Hooks                          │    │
+│  │  useStatsCalculator │ useLeagueStats │ useFirebaseData  │    │
+│  └─────────────────────────────┬───────────────────────────┘    │
 └────────────────────────────────┼────────────────────────────────┘
-                                 │
+                                 │
 ┌────────────────────────────────┼────────────────────────────────┐
-│                                ▼                                 │
-│                         Data Layer                               │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │              Firebase Service Layer                      │    │
-│  │         (Firestore CRUD + Realtime Sync)                │    │
-│  └─────────────────────────────────────────────────────────┘    │
+│                                ▼                                 │
+│                         Data Layer                               │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Firebase Service Layer                      │    │
+│  │         (Firestore CRUD + Realtime Sync)                │    │
+│  └─────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -186,56 +186,56 @@ npm run lint
 
 ```
 league-app/
-├── electron/                    # Electron 主进程
-│   ├── main.cjs                 # 主进程入口
-│   └── preload.cjs              # 预加载脚本
-├── public/                      # 静态资源
+├── electron/                    # Electron 主进程
+│   ├── main.cjs                 # 主进程入口
+│   └── preload.cjs              # 预加载脚本
+├── public/                      # 静态资源
 ├── src/
-│   ├── main.jsx                 # 应用入口
-│   ├── App.jsx                  # 根组件
-│   ├── index.css                # 全局样式
-│   ├── components/
-│   │   ├── common/              # 通用组件
-│   │   │   ├── Avatar.jsx       # 头像组件
-│   │   │   ├── Icon.jsx         # 图标组件
-│   │   │   ├── Clock.jsx        # 时钟组件
-│   │   │   └── ErrorBoundary.jsx
-│   │   ├── layout/              # 布局组件
-│   │   │   ├── Header.jsx
-│   │   │   └── BottomNav.jsx
-│   │   ├── modals/              # 弹窗组件
-│   │   │   ├── PlayerProfileModal.jsx
-│   │   │   ├── HeadToHead.jsx
-│   │   │   ├── SecurityModal.jsx
-│   │   │   └── SettlementModal.jsx
-│   │   └── tabs/                # 页面组件
-│   │       ├── Dashboard.jsx
-│   │       ├── Leaderboard.jsx
-│   │       ├── MatchHistory.jsx
-│   │       ├── NewGameForm.jsx
-│   │       └── Settings.jsx
-│   ├── charts/                  # 图表组件
-│   │   ├── CareerChart.jsx      # 生涯曲线图
-│   │   ├── ProRadarChart.jsx    # 能力雷达图
-│   │   └── Sparkline.jsx        # 迷你趋势图
-│   ├── hooks/                   # 自定义 Hooks
-│   │   ├── useStatsCalculator.js
-│   │   ├── useLeagueStats.js
-│   │   ├── useFirebaseData.js
-│   │   └── useTheme.js
-│   ├── services/                # 服务层
-│   │   └── firebase.service.js
-│   ├── lib/                     # 工具库
-│   │   ├── firebase.js          # Firebase 配置
-│   │   └── utils.js             # 工具函数
-│   ├── constants/               # 常量定义
-│   │   └── index.js
-│   ├── types/                   # 类型定义
-│   │   └── index.js
-│   └── __tests__/               # 测试文件
-│       ├── components/
-│       ├── hooks/
-│       └── utils/
+│   ├── main.jsx                 # 应用入口
+│   ├── App.jsx                  # 根组件
+│   ├── index.css                # 全局样式
+│   ├── components/
+│   │   ├── common/              # 通用组件
+│   │   │   ├── Avatar.jsx       # 头像组件
+│   │   │   ├── Icon.jsx         # 图标组件
+│   │   │   ├── Clock.jsx        # 时钟组件
+│   │   │   └── ErrorBoundary.jsx
+│   │   ├── layout/              # 布局组件
+│   │   │   ├── Header.jsx
+│   │   │   └── BottomNav.jsx
+│   │   ├── modals/              # 弹窗组件
+│   │   │   ├── PlayerProfileModal.jsx
+│   │   │   ├── HeadToHead.jsx
+│   │   │   ├── SecurityModal.jsx
+│   │   │   └── SettlementModal.jsx
+│   │   └── tabs/                # 页面组件
+│   │       ├── Dashboard.jsx
+│   │       ├── Leaderboard.jsx
+│   │       ├── MatchHistory.jsx
+│   │       ├── NewGameForm.jsx
+│   │       └── Settings.jsx
+│   ├── charts/                  # 图表组件
+│   │   ├── CareerChart.jsx      # 生涯曲线图
+│   │   ├── ProRadarChart.jsx    # 能力雷达图
+│   │   └── Sparkline.jsx        # 迷你趋势图
+│   ├── hooks/                   # 自定义 Hooks
+│   │   ├── useStatsCalculator.js
+│   │   ├── useLeagueStats.js
+│   │   ├── useFirebaseData.js
+│   │   └── useTheme.js
+│   ├── services/                # 服务层
+│   │   └── firebase.service.js
+│   ├── lib/                     # 工具库
+│   │   ├── firebase.js          # Firebase 配置
+│   │   └── utils.js             # 工具函数
+│   ├── constants/               # 常量定义
+│   │   └── index.js
+│   ├── types/                   # 类型定义
+│   │   └── index.js
+│   └── __tests__/               # 测试文件
+│       ├── components/
+│       ├── hooks/
+│       └── utils/
 ├── package.json
 ├── vite.config.js
 ├── tailwind.config.js
@@ -259,25 +259,25 @@ league-app/
 ```javascript
 // 玩家数据结构
 Player {
-  id: string
-  name: string
-  avatar: string
-  stats: {
-    totalGames: number
-    totalScore: number
-    avgScore: number
-    winRate: number
-    powerRating: number
-  }
+  id: string
+  name: string
+  avatar: string
+  stats: {
+    totalGames: number
+    totalScore: number
+    avgScore: number
+    winRate: number
+    powerRating: number
+  }
 }
 
 // 比赛数据结构
 Match {
-  id: string
-  date: timestamp
-  players: Player[]
-  scores: number[]
-  winner: string
+  id: string
+  date: timestamp
+  players: Player[]
+  scores: number[]
+  winner: string
 }
 ```
 
@@ -286,13 +286,13 @@ Match {
 ### 测试金字塔
 
 ```
-        ┌───────────┐
-        │   E2E     │  ← Playwright (计划中)
-        ├───────────┤
-        │Integration│  ← Vitest + Testing Library
-        ├───────────┤
-        │   Unit    │  ← Vitest + fast-check
-        └───────────┘
+        ┌───────────┐
+        │   E2E     │  ← Playwright (计划中)
+        ├───────────┤
+        │Integration│  ← Vitest + Testing Library
+        ├───────────┤
+        │   Unit    │  ← Vitest + fast-check
+        └───────────┘
 ```
 
 ### 测试覆盖
@@ -334,6 +334,32 @@ Match {
 - 常量命名: SCREAMING_SNAKE_CASE
 - 必须添加 JSDoc 注释
 
+## ⚠️ 免责声明
+
+### 项目性质
+
+本项目是一个**纯技术学习和代码研究项目**，旨在：
+- 学习和实践 React、Firebase、Electron 等现代 Web 技术
+- 研究数据可视化和统计分析算法
+- 探索前端工程化和架构设计
+
+### 重要声明
+
+1. **非商业用途**：本项目完全免费开源，不涉及任何商业行为，不收取任何费用
+2. **纯代码研究**：本仓库仅包含程序源代码，不包含任何用户数据或真实业务数据
+3. **技术演示**：项目中的"积分"、"分数"等概念仅为技术演示用的虚拟数值，用于展示数据统计和可视化功能
+4. **学习目的**：本项目仅供个人学习、技术交流和代码研究使用
+
+### 使用限制
+
+- 使用者应遵守所在地区的法律法规
+- 本项目不鼓励、不支持任何形式的违法活动
+- 作者不对使用者如何使用本代码承担任何责任
+
+### 责任限制
+
+本软件按"原样"提供，不提供任何明示或暗示的保证。在任何情况下，作者均不对因使用本软件而产生的任何直接、间接、偶然、特殊或后果性损害承担责任。
+
 ## 📄 许可证
 
 本项目基于 [MIT License](LICENSE) 开源。
@@ -357,5 +383,5 @@ Match {
 ---
 
 <p align="center">
-  <sub>Built with ❤️ by d631015320</sub>
+  <sub>Built with ❤️ by d631015320</sub>
 </p>
