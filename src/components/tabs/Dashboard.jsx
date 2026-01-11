@@ -149,35 +149,35 @@ const Dashboard = ({
                     </div>
                 </div>
 
-                {/* === 联赛数据概览 (移动端横向滚动，桌面端占 2 列) === */}
-                <div className="lg:col-span-2 flex flex-row lg:flex-col gap-3 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 scroll-touch scrollbar-hide -mx-4 px-4 lg:mx-0 lg:px-0">
+                {/* === 联赛数据概览 (移动端三列等宽，桌面端占 2 列垂直排列) === */}
+                <div className="lg:col-span-2 grid grid-cols-3 lg:flex lg:flex-col gap-2 lg:gap-3">
                     {/* 举办场次 */}
-                    <div className="glass-panel rounded-xl p-3 sm:p-4 flex flex-col items-center justify-center flex-shrink-0 w-[120px] sm:w-auto lg:flex-1 border border-slate-200 dark:border-slate-700/50 relative overflow-hidden group hover:scale-[1.02] transition-transform shadow-sm hover:shadow-md">
+                    <div className="glass-panel rounded-xl p-2 sm:p-4 flex flex-col items-center justify-center lg:flex-1 border border-slate-200 dark:border-slate-700/50 relative overflow-hidden group hover:scale-[1.02] transition-transform shadow-sm hover:shadow-md">
                         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 sm:mb-2 z-10">举办场次</div>
-                        <div className="flex items-baseline gap-1 z-10">
-                            <span className="text-2xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-blue-500 to-cyan-400 font-mono">{statsData.seasonStats.totalGames}</span>
-                            <span className="text-[10px] sm:text-xs font-bold text-slate-400">场</span>
+                        <div className="text-[9px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider sm:tracking-widest mb-1 sm:mb-2 z-10">场次</div>
+                        <div className="flex items-baseline gap-0.5 sm:gap-1 z-10">
+                            <span className="text-xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-blue-500 to-cyan-400 font-mono">{statsData.seasonStats.totalGames}</span>
+                            <span className="text-[9px] sm:text-xs font-bold text-slate-400">场</span>
                         </div>
                     </div>
 
                     {/* 场均人数 */}
-                    <div className="glass-panel rounded-xl p-3 sm:p-4 flex flex-col items-center justify-center flex-shrink-0 w-[120px] sm:w-auto lg:flex-1 border border-slate-200 dark:border-slate-700/50 relative overflow-hidden group hover:scale-[1.02] transition-transform shadow-sm hover:shadow-md">
+                    <div className="glass-panel rounded-xl p-2 sm:p-4 flex flex-col items-center justify-center lg:flex-1 border border-slate-200 dark:border-slate-700/50 relative overflow-hidden group hover:scale-[1.02] transition-transform shadow-sm hover:shadow-md">
                         <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 sm:mb-2 z-10">场均人数</div>
-                        <div className="flex items-baseline gap-1 z-10">
-                            <span className="text-2xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-violet-500 to-fuchsia-400 font-mono">{avgPlayers}</span>
-                            <span className="text-[10px] sm:text-xs font-bold text-slate-400">人</span>
+                        <div className="text-[9px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider sm:tracking-widest mb-1 sm:mb-2 z-10">场均</div>
+                        <div className="flex items-baseline gap-0.5 sm:gap-1 z-10">
+                            <span className="text-xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-violet-500 to-fuchsia-400 font-mono">{avgPlayers}</span>
+                            <span className="text-[9px] sm:text-xs font-bold text-slate-400">人</span>
                         </div>
                     </div>
 
                     {/* 活跃玩家 */}
-                    <div className="glass-panel rounded-xl p-3 sm:p-4 flex flex-col items-center justify-center flex-shrink-0 w-[120px] sm:w-auto lg:flex-1 border border-slate-200 dark:border-slate-700/50 relative overflow-hidden group hover:scale-[1.02] transition-transform shadow-sm hover:shadow-md">
+                    <div className="glass-panel rounded-xl p-2 sm:p-4 flex flex-col items-center justify-center lg:flex-1 border border-slate-200 dark:border-slate-700/50 relative overflow-hidden group hover:scale-[1.02] transition-transform shadow-sm hover:shadow-md">
                         <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <div className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 sm:mb-2 z-10">活跃玩家</div>
-                        <div className="flex items-baseline gap-1 z-10">
-                            <span className="text-2xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-500 to-amber-400 font-mono">{statsData.leaderboardData.length}</span>
-                            <span className="text-[10px] sm:text-xs font-bold text-slate-400">人</span>
+                        <div className="text-[9px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider sm:tracking-widest mb-1 sm:mb-2 z-10">玩家</div>
+                        <div className="flex items-baseline gap-0.5 sm:gap-1 z-10">
+                            <span className="text-xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-500 to-amber-400 font-mono">{statsData.leaderboardData.length}</span>
+                            <span className="text-[9px] sm:text-xs font-bold text-slate-400">人</span>
                         </div>
                     </div>
                 </div>
