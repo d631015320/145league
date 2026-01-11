@@ -181,13 +181,12 @@ const Dashboard = ({
                         </div>
                     </div>
                 </div>
-                {/* === 七维度前三名 (移动端可横向滚动，桌面端占 5 列) === */}
+                {/* === 七维度前三名 (占 5 列) === */}
                 <div className="lg:col-span-5 glass-panel rounded-2xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700/50 flex flex-col">
                     <h3 className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 sm:mb-4 flex items-center gap-2">
                         <Icon name="radar" className="w-4 h-4" /> 七维度之王
                     </h3>
-                    {/* 移动端横向滚动，桌面端垂直列表 */}
-                    <div className="flex-1 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 scroll-touch scrollbar-hide -mx-4 px-4 lg:mx-0 lg:px-0">
+                    <div className="flex-1 flex flex-col gap-2">
                         {[
                             { key: 'domination', label: '统治', icon: 'crown', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10', format: (p) => `${(p.dimDomination * 100).toFixed(0)}%` },
                             { key: 'knockout', label: '击败', icon: 'swords', color: 'text-red-500', bgColor: 'bg-red-500/10', format: (p) => `${(p.dimKnockout * 100).toFixed(0)}%` },
@@ -203,30 +202,16 @@ const Dashboard = ({
                             return (
                                 <div 
                                     key={dim.key} 
-                                    className="flex flex-col lg:flex-row items-center lg:items-center gap-2 lg:gap-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg p-3 lg:px-3 lg:py-2 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors flex-shrink-0 w-[100px] lg:w-auto touch-feedback"
-                                    onClick={() => isMobile && onPlayerClick(dimFirst)}
+                                    className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
                                 >
                                     {/* 维度图标和标签 */}
-                                    <div className={`w-8 h-8 lg:w-7 lg:h-7 rounded-md ${dim.bgColor} flex items-center justify-center flex-shrink-0`}>
+                                    <div className={`w-7 h-7 rounded-md ${dim.bgColor} flex items-center justify-center flex-shrink-0`}>
                                         <Icon name={dim.icon} className={`w-4 h-4 ${dim.color}`} />
                                     </div>
-                                    <span className="text-[10px] lg:text-xs font-bold text-slate-500 dark:text-slate-400 lg:w-8 flex-shrink-0 text-center lg:text-left">{dim.label}</span>
+                                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 w-8 flex-shrink-0">{dim.label}</span>
 
-                                    {/* 移动端：只显示第一名头像和数值 */}
-                                    <div className="flex lg:hidden flex-col items-center gap-1">
-                                        <Avatar
-                                            name={dimFirst.name}
-                                            src={dimFirst.avatar}
-                                            size="sm"
-                                            className="border-2 border-white dark:border-slate-700 ring-1 ring-yellow-400"
-                                        />
-                                        <span className={`text-xs font-mono font-bold ${dim.color}`}>
-                                            {dim.format(dimFirst)}
-                                        </span>
-                                    </div>
-
-                                    {/* 桌面端：前三名头像 */}
-                                    <div className="hidden lg:flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                    {/* 前三名头像 */}
+                                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
                                         {dimTop3.slice(0, 3).map((p, idx) => (
                                             <div
                                                 key={p.name}
@@ -244,8 +229,8 @@ const Dashboard = ({
                                         ))}
                                     </div>
 
-                                    {/* 桌面端：第一名名字和数值 */}
-                                    <div className="hidden lg:flex flex-1 min-w-0 items-center justify-end gap-2 ml-auto">
+                                    {/* 第一名名字和数值 */}
+                                    <div className="flex flex-1 min-w-0 items-center justify-end gap-2 ml-auto">
                                         <span
                                             className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate cursor-pointer hover:text-slate-900 dark:hover:text-white"
                                             onClick={() => onPlayerClick(dimFirst)}
