@@ -75,9 +75,11 @@ function MatchRow({ match, onNavigate }) {
       aria-label={`查看 ${formatDate(match.date)} 的比赛详情`}
       className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer focus:outline-none focus:bg-emerald-50 dark:focus:bg-emerald-900/20"
     >
+      {/* 日期 */}
       <td className="px-4 py-2 text-slate-600 dark:text-slate-300 font-mono text-xs">
         {formatDate(match.date)}
       </td>
+      {/* 排名 */}
       <td className="px-4 py-2 text-center">
         <span className={`inline-block w-6 h-6 leading-6 rounded-full text-xs font-bold ${
           match.result.rank === 1 
@@ -89,9 +91,11 @@ function MatchRow({ match, onNavigate }) {
           {match.result.rank}
         </span>
       </td>
+      {/* 积分 */}
       <td className="px-4 py-2 text-right font-bold text-slate-700 dark:text-white">
         +{match.result.score}
       </td>
+      {/* 筹码 */}
       <td className={`px-4 py-2 text-right font-mono ${
         match.result.chips >= 0 
           ? 'text-teal-500 dark:text-teal-400' 
@@ -99,6 +103,7 @@ function MatchRow({ match, onNavigate }) {
       }`}>
         {match.result.chips > 0 ? '+' : ''}{match.result.chips}
       </td>
+      {/* 评分进度条 */}
       <td className="px-4 py-2 text-right">
         <div className="w-16 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full ml-auto overflow-hidden">
           <div 

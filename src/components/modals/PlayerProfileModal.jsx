@@ -256,15 +256,15 @@ const PlayerProfileModal = ({
                         <div className="hidden md:flex gap-8 mt-20">
                             <div className="text-center">
                                 <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">实战胜率 (Raw)</div>
-                                <div className="text-2xl font-mono font-bold text-slate-700 dark:text-white">{totalGames ? ((wins/totalGames)*100).toFixed(1) : 0}%</div>
+                                <div className="text-xl font-mono text-slate-500 dark:text-slate-400">{totalGames ? ((wins/totalGames)*100).toFixed(1) : 0}%</div>
                             </div>
                             <div className="text-center">
                                 <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">统治力指数 (Adj.)</div>
-                                <div className="text-2xl font-mono font-bold text-indigo-600 dark:text-indigo-400">{(adjWinRate * 100).toFixed(1)}%</div>
+                                <div className="text-3xl font-mono font-black text-purple-600 dark:text-purple-400">{(adjWinRate * 100).toFixed(1)}%</div>
                             </div>
                             <div className="text-center">
                                 <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">场均得分</div>
-                                <div className="text-2xl font-mono font-bold text-emerald-600 dark:text-emerald-400">{player.avgScore}</div>
+                                <div className="text-3xl font-mono font-black text-emerald-600 dark:text-emerald-400">{player.avgScore}</div>
                             </div>
                         </div>
                     </div>
@@ -310,7 +310,7 @@ const PlayerProfileModal = ({
                         </div>
                         <div className="lg:col-span-2 space-y-6">
                             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700/50 shadow-inner">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">赛季积分走势</h3>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">场均得分走势</h3>
                                 <CareerChart history={playerMatches.map(m => ({ score: m.result.score }))} isDark={isDark} />
                             </div>
                             <div className="bg-white dark:bg-slate-800/50 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700/50 shadow-sm">
@@ -321,15 +321,15 @@ const PlayerProfileModal = ({
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm">
                                         <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 text-xs uppercase font-semibold">
-                                            <tr><th className="px-4 py-2 text-left">日期</th><th className="px-4 py-2 text-center">排名</th><th className="px-4 py-2 text-right">筹码</th><th className="px-4 py-2 text-right">积分</th><th className="px-4 py-2 text-right">评分</th></tr>
+                                            <tr><th className="px-4 py-2 text-left">日期</th><th className="px-4 py-2 text-center">排名</th><th className="px-4 py-2 text-right">积分</th><th className="px-4 py-2 text-right">筹码</th><th className="px-4 py-2 text-right">评分</th></tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                                             {displayedMatches.map(m => (
                                                 <tr key={m.id} onClick={() => onNavigateToMatch(m.id)} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer">
                                                     <td className="px-4 py-2 text-slate-600 dark:text-slate-300 font-mono text-xs">{formatDate(m.date)}</td>
                                                     <td className="px-4 py-2 text-center"><span className={`inline-block w-6 h-6 leading-6 rounded-full text-xs font-bold ${m.result.rank === 1 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400' : m.result.rank <= 3 ? 'bg-slate-200 text-slate-700 dark:bg-slate-600/50 dark:text-white' : 'text-slate-400'}`}>{m.result.rank}</span></td>
-                                                    <td className={`px-4 py-2 text-right font-mono ${m.result.chips >= 0 ? 'text-teal-500 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400'}`}>{m.result.chips > 0 ? '+' : ''}{m.result.chips}</td>
                                                     <td className="px-4 py-2 text-right font-bold text-slate-700 dark:text-white">+{m.result.score}</td>
+                                                    <td className={`px-4 py-2 text-right font-mono ${m.result.chips >= 0 ? 'text-teal-500 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400'}`}>{m.result.chips > 0 ? '+' : ''}{m.result.chips}</td>
                                                     <td className="px-4 py-2 text-right"><div className="w-16 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full ml-auto overflow-hidden"><div className="h-full bg-emerald-500" style={{ width: `${(m.result.score / 25) * 100}%` }}></div></div></td>
                                                 </tr>
                                             ))}
