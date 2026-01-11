@@ -28,7 +28,8 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Firebase-12.7.0-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase">
+  <img src="https://img.shields.io/badge/Supabase-3.x-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase">
+  <img src="https://img.shields.io/badge/Firebase-12.x-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase">
   <img src="https://img.shields.io/badge/Electron-39.2.7-47848F?style=for-the-badge&logo=electron&logoColor=white" alt="Electron">
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License">
 </p>
@@ -43,7 +44,7 @@
 
 ## 📋 概述
 
-《145联赛》是一款现代化的扑克联赛数据管理平台，提供完整的比赛记录、玩家统计分析、实时排行榜和数据可视化功能。系统采用 React 19 + Firebase 技术栈构建，支持 Web 和 Electron 桌面端双平台部署。
+《145联赛》是一款现代化的扑克联赛数据管理平台，提供完整的比赛记录、玩家统计分析、实时排行榜和数据可视化功能。系统采用 React 19 技术栈构建，支持 Supabase / Firebase 双数据库，可部署到 Cloudflare Pages / Netlify / Vercel 等平台，同时支持 Electron 桌面端。
 
 > 💡 **为什么选择 145 联赛？**
 > - 🚀 开箱即用的联赛管理解决方案
@@ -97,11 +98,13 @@
 | 特性 | 描述 |
 |:-----|:-----|
 | ⚡ **极致性能** | Vite 构建，首屏加载 < 1s，流畅的用户体验 |
-| 🔄 **实时同步** | 基于 Firebase Realtime 的毫秒级数据更新 |
+| 🔄 **实时同步** | 基于 Supabase / Firebase 的毫秒级数据更新 |
 | 📈 **专业图表** | Recharts 驱动的交互式数据可视化 |
 | 🌓 **主题切换** | 自适应系统偏好的深色/浅色主题 |
 | 📱 **响应式** | 完美适配桌面、平板、移动设备 |
 | 🖥️ **跨平台** | Web + Electron 双端部署支持 |
+| 🔀 **双数据库** | 支持 Supabase 和 Firebase，环境变量一键切换 |
+| 🚀 **多平台部署** | Cloudflare Pages / Netlify / Vercel 任选 |
 
 ---
 
@@ -122,16 +125,16 @@
       <br><sub><b>Tailwind</b></sub>
     </td>
     <td align="center" width="96">
+      <img src="https://skillicons.dev/icons?i=supabase" width="48" height="48" alt="Supabase" />
+      <br><sub><b>Supabase</b></sub>
+    </td>
+    <td align="center" width="96">
       <img src="https://skillicons.dev/icons?i=firebase" width="48" height="48" alt="Firebase" />
       <br><sub><b>Firebase</b></sub>
     </td>
     <td align="center" width="96">
       <img src="https://skillicons.dev/icons?i=electron" width="48" height="48" alt="Electron" />
       <br><sub><b>Electron</b></sub>
-    </td>
-    <td align="center" width="96">
-      <img src="https://skillicons.dev/icons?i=vitest" width="48" height="48" alt="Vitest" />
-      <br><sub><b>Vitest</b></sub>
     </td>
   </tr>
 </table>
@@ -143,12 +146,12 @@
 | **前端框架** | React | 19.2.0 | 函数式组件 + Hooks |
 | **构建工具** | Vite | 7.2.4 | 极速 HMR 开发体验 |
 | **样式方案** | Tailwind CSS | 3.4.17 | 原子化 CSS 框架 |
-| **数据库** | Firebase Firestore | 12.7.0 | 实时 NoSQL 数据库 |
+| **数据库** | Supabase | 3.x | PostgreSQL + 实时订阅（推荐） |
+| **数据库** | Firebase | 12.x | NoSQL + 实时同步（备选） |
 | **桌面端** | Electron | 39.2.7 | 跨平台桌面应用 |
 | **图表库** | Recharts | - | 交互式数据可视化 |
 | **单元测试** | Vitest | 4.0.16 | 快速单元测试框架 |
-| **组件测试** | Testing Library | 16.3.1 | React 组件测试 |
-| **属性测试** | fast-check | 4.5.3 | 属性基础测试 |
+| **部署平台** | Cloudflare / Netlify / Vercel | - | 任选其一 |
 
 
 ---
@@ -176,37 +179,81 @@ npm install
 cp .env.example .env.local
 ```
 
-### 🔥 Firebase 配置
+### 🔥 数据库配置
+
+项目支持 **Supabase** 和 **Firebase** 两种数据库，通过环境变量 `VITE_DB_PROVIDER` 切换。
 
 <details>
-<summary>📖 点击展开详细配置步骤</summary>
+<summary>📖 Supabase 配置（推荐，国内可访问）</summary>
 
-1. 访问 [Firebase Console](https://console.firebase.google.com/) 创建新项目
-2. 在项目设置中启用以下服务：
-   - ✅ **Firestore Database** - 实时数据存储
-   - ✅ **Authentication** - 用户认证（可选）
-3. 获取项目配置信息
-4. 创建 `src/lib/firebase.js` 文件：
+1. 访问 [Supabase](https://supabase.com/) 创建新项目
+2. 在 SQL Editor 中创建表：
 
-```javascript
-// src/lib/firebase.js
-import { initializeApp } from 'firebase/app'
-import { getFirestore } from 'firebase/firestore'
+```sql
+-- 比赛记录表
+CREATE TABLE matches (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  date DATE NOT NULL,
+  results JSONB DEFAULT '[]',
+  roster JSONB DEFAULT '[]',
+  transactions JSONB DEFAULT '[]',
+  final_stacks JSONB DEFAULT '{}',
+  voted_mvp TEXT,
+  lucky_player TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-const firebaseConfig = {
-  apiKey: "your-api-key",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "your-sender-id",
-  appId: "your-app-id"
-}
+-- 玩家档案表
+CREATE TABLE profiles (
+  name TEXT PRIMARY KEY,
+  avatar TEXT,
+  real_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
 
-const app = initializeApp(firebaseConfig)
-export const db = getFirestore(app)
+3. 在 Project Settings → API 获取 URL 和 anon key
+4. 配置 `.env.local`：
+
+```bash
+VITE_DB_PROVIDER=supabase
+VITE_SUPABASE_URL=your-project-url
+VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
 </details>
+
+<details>
+<summary>📖 Firebase 配置</summary>
+
+1. 访问 [Firebase Console](https://console.firebase.google.com/) 创建新项目
+2. 启用 Firestore Database 和 Authentication
+3. 获取项目配置信息，配置 `.env.local`：
+
+```bash
+VITE_DB_PROVIDER=firebase
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+VITE_FIREBASE_APP_ID=your-app-id
+```
+
+</details>
+
+### 🚀 部署平台
+
+项目支持多种部署平台，构建设置相同：
+- **Build command**: `npm run build`
+- **Output directory**: `dist`
+- **环境变量**: 添加数据库相关的 `VITE_*` 变量
+
+| 平台 | 特点 | 国内访问 |
+|:-----|:-----|:---------|
+| **Cloudflare Pages** | 免费额度大，全球 CDN | ✅ 可访问 |
+| **Netlify** | 易用，自动 HTTPS | ⚠️ 部分地区受限 |
+| **Vercel** | 与 Next.js 集成好 | ❌ 需翻墙 |
 
 ### ▶️ 启动应用
 
@@ -253,7 +300,7 @@ npm run lint          # 代码规范检查
 │                        🧠 Business Logic Layer                       │
 │  ┌─────────────────────────────────────────────────────────────────┐│
 │  │                      Custom Hooks                               ││
-│  │  useStatsCalculator │ useLeagueStats │ useFirebaseData          ││
+│  │  useStatsCalculator │ useLeagueStats │ useData                  ││
 │  └─────────────────────────────┬───────────────────────────────────┘│
 └────────────────────────────────┼────────────────────────────────────┘
                                  │
@@ -261,8 +308,8 @@ npm run lint          # 代码规范检查
 ┌─────────────────────────────────────────────────────────────────────┐
 │                          💾 Data Layer                               │
 │  ┌─────────────────────────────────────────────────────────────────┐│
-│  │              Firebase Service Layer                             ││
-│  │         (Firestore CRUD + Realtime Sync)                        ││
+│  │              Database Service Layer                             ││
+│  │         (Supabase / Firebase + Realtime Sync)                   ││
 │  └─────────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -309,7 +356,9 @@ league-app/
 |:-----|:-----|:-----|:-----|
 | `useStatsCalculator` | 玩家统计计算 | 比赛记录数组 | 场均分、胜率、战力值等 |
 | `useLeagueStats` | 联盟极值计算 | 玩家列表 | 最高/最低各项指标 |
-| `useFirebaseData` | 实时数据订阅 | 集合路径 | 实时数据流 |
+| `useData` | 统一数据接口 | - | 自动切换 Firebase/Supabase |
+| `useSupabaseData` | Supabase 订阅 | - | 实时数据流 |
+| `useFirebaseData` | Firebase 订阅 | - | 实时数据流 |
 | `useTheme` | 主题状态管理 | - | 主题状态、切换方法 |
 
 ### 🧪 测试策略
@@ -341,12 +390,24 @@ league-app/
 ## ❓ 常见问题
 
 <details>
-<summary><b>🔥 Q: 如何配置 Firebase？</b></summary>
+<summary><b>🔥 Q: 如何切换数据库？</b></summary>
 
-1. 创建 Firebase 项目
-2. 启用 Firestore 和 Authentication
-3. 复制配置到 `src/lib/firebase.js`
-4. 确保 `.env.local` 中的环境变量正确
+修改 `.env.local` 中的 `VITE_DB_PROVIDER`：
+- `supabase` - 使用 Supabase（推荐，国内可访问）
+- `firebase` - 使用 Firebase
+
+重启开发服务器即可生效。
+
+</details>
+
+<details>
+<summary><b>🚀 Q: 如何部署？</b></summary>
+
+1. 选择平台：Cloudflare Pages（推荐）/ Netlify / Vercel
+2. 连接 GitHub 仓库
+3. 构建设置：Build command = `npm run build`，Output = `dist`
+4. 添加环境变量（VITE_DB_PROVIDER 和对应数据库配置）
+5. 部署
 
 </details>
 
@@ -356,7 +417,7 @@ league-app/
 确保：
 - Node.js 版本 >= 18
 - 所有依赖已正确安装
-- Firebase 配置正确
+- 数据库配置正确（Supabase 或 Firebase）
 - 运行 `npm run build` 后再打包
 
 </details>
