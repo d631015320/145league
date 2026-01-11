@@ -1,63 +1,133 @@
-# 145 联赛管理应用
+<p align="center">
+  <img src="public/favicon.png" alt="145 League Logo" width="120" height="120">
+</p>
 
-一个用于管理扑克联赛的现代化 Web 应用，支持比赛记录、玩家统计、排行榜和数据可视化。
+<h1 align="center">145 联赛管理系统</h1>
 
-## 功能特性
+<p align="center">
+  <strong>专业级扑克联赛数据管理与分析平台</strong>
+</p>
 
-- 📊 **Dashboard** - 实时查看联赛概览和关键统计数据
-- 🏆 **Leaderboard** - 玩家排行榜，支持多维度排序
-- 📝 **Match History** - 完整的比赛历史记录和详情查看
-- ➕ **New Game** - 快速录入新比赛结果
-- ⚙️ **Settings** - 个性化设置和管理功能
-- 🌙 **Dark Mode** - 支持深色/浅色主题切换
-- 📱 **响应式设计** - 完美适配桌面和移动设备
-- 🖥️ **Electron 支持** - 可作为桌面应用运行
+<p align="center">
+  <a href="#功能特性">功能特性</a> •
+  <a href="#快速开始">快速开始</a> •
+  <a href="#系统架构">系统架构</a> •
+  <a href="#开发指南">开发指南</a> •
+  <a href="#贡献指南">贡献指南</a>
+</p>
 
-## 技术栈
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19.2.0-61DAFB?style=flat-square&logo=react" alt="React">
+  <img src="https://img.shields.io/badge/Vite-7.2.4-646CFF?style=flat-square&logo=vite" alt="Vite">
+  <img src="https://img.shields.io/badge/Tailwind-3.4.17-38B2AC?style=flat-square&logo=tailwind-css" alt="Tailwind">
+  <img src="https://img.shields.io/badge/Firebase-12.7.0-FFCA28?style=flat-square&logo=firebase" alt="Firebase">
+  <img src="https://img.shields.io/badge/Electron-39.2.7-47848F?style=flat-square&logo=electron" alt="Electron">
+  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License">
+</p>
 
-- **前端框架**: React 19 + Vite 7
-- **样式**: Tailwind CSS
-- **数据库**: Firebase Firestore
-- **认证**: Firebase Authentication
-- **图表**: Chart.js
-- **图标**: Lucide React
-- **测试**: Vitest + React Testing Library + fast-check
-- **桌面应用**: Electron
+---
 
-## 快速开始
+## 📋 概述
+
+145 联赛管理系统是一款现代化的扑克联赛数据管理平台，提供完整的比赛记录、玩家统计分析、实时排行榜和数据可视化功能。系统采用 React 19 + Firebase 技术栈构建，支持 Web 和 Electron 桌面端双平台部署。
+
+## ✨ 功能特性
+
+| 模块 | 功能描述 |
+|:-----|:---------|
+| 📊 **数据仪表盘** | 实时联赛概览、关键指标监控、趋势分析 |
+| 🏆 **智能排行榜** | 多维度排序、战力值算法、玩家对比分析 |
+| 📝 **比赛历史** | 完整比赛记录、详情查看、数据导出 |
+| ➕ **快速录入** | 一键录入比赛结果、智能校验、批量操作 |
+| 👤 **玩家档案** | 个人数据统计、生涯曲线、雷达图分析 |
+| ⚙️ **系统设置** | 主题切换、数据管理、权限控制 |
+
+### 核心亮点
+
+- 🎯 **实时数据同步** - 基于 Firebase Realtime 的毫秒级数据更新
+- 📈 **专业数据可视化** - Chart.js 驱动的交互式图表
+- 🌓 **深色/浅色主题** - 自适应系统偏好的主题切换
+- 📱 **响应式设计** - 完美适配桌面、平板、移动设备
+- 🖥️ **跨平台支持** - Web + Electron 双端部署
+- ⚡ **极致性能** - Vite 构建，首屏加载 < 1s
+
+## 🛠️ 技术栈
+
+### 前端框架
+| 技术 | 版本 | 用途 |
+|:-----|:-----|:-----|
+| React | 19.2.0 | UI 框架 |
+| Vite | 7.2.4 | 构建工具 |
+| Tailwind CSS | 3.4.17 | 样式框架 |
+
+### 后端服务
+| 技术 | 版本 | 用途 |
+|:-----|:-----|:-----|
+| Firebase Firestore | 12.7.0 | 实时数据库 |
+| Firebase Auth | 12.7.0 | 用户认证 |
+
+### 桌面端
+| 技术 | 版本 | 用途 |
+|:-----|:-----|:-----|
+| Electron | 39.2.7 | 桌面应用框架 |
+
+### 测试框架
+| 技术 | 版本 | 用途 |
+|:-----|:-----|:-----|
+| Vitest | 4.0.16 | 单元测试 |
+| Testing Library | 16.3.1 | 组件测试 |
+| fast-check | 4.5.3 | 属性测试 |
+
+## 🚀 快速开始
 
 ### 环境要求
 
-- Node.js 18+
-- npm 或 yarn
+- **Node.js** >= 18.0.0
+- **npm** >= 9.0.0 或 **yarn** >= 1.22.0
 
-### 安装
+### 安装步骤
 
 ```bash
-# 克隆仓库
-git clone <repository-url>
+# 1. 克隆仓库
+git clone https://github.com/your-org/league-app.git
 cd league-app
 
-# 安装依赖
+# 2. 安装依赖
 npm install
+
+# 3. 配置环境变量
+cp .env.example .env.local
+# 编辑 .env.local 填入 Firebase 配置
 ```
 
-### 配置 Firebase
+### Firebase 配置
 
-1. 在 [Firebase Console](https://console.firebase.google.com/) 创建项目
-2. 启用 Firestore 和 Authentication
-3. 复制 Firebase 配置到 `src/lib/firebase.js`
+1. 访问 [Firebase Console](https://console.firebase.google.com/) 创建项目
+2. 启用 **Firestore Database** 和 **Authentication**
+3. 获取项目配置并更新 `src/lib/firebase.js`
 
-### 运行
+```javascript
+// src/lib/firebase.js
+const firebaseConfig = {
+  apiKey: "your-api-key",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "your-sender-id",
+  appId: "your-app-id"
+}
+```
+
+### 启动应用
 
 ```bash
-# 开发模式 (Web)
+# Web 开发模式
 npm run web
 
-# 开发模式 (Electron)
+# Electron 开发模式
 npm run dev
 
-# 构建生产版本
+# 生产构建
 npm run build
 
 # 预览生产版本
@@ -67,7 +137,7 @@ npm run preview
 ### 测试
 
 ```bash
-# 运行测试
+# 运行所有测试
 npm test
 
 # 监听模式
@@ -75,155 +145,213 @@ npm run test:watch
 
 # 覆盖率报告
 npm run test:coverage
+
+# 代码检查
+npm run lint
 ```
 
+## 🏗️ 系统架构
 
-## 项目架构
+### 整体架构
 
-```mermaid
-graph TB
-    subgraph "Presentation Layer"
-        App[App.jsx]
-        Tabs[Tab Components]
-        UI[UI Components]
-    end
-    
-    subgraph "Business Logic Layer"
-        Hooks[Custom Hooks]
-        Services[Services]
-    end
-    
-    subgraph "Data Layer"
-        Firebase[Firebase]
-        LocalStorage[LocalStorage]
-    end
-    
-    App --> Tabs
-    App --> UI
-    Tabs --> Hooks
-    Hooks --> Services
-    Services --> Firebase
-    Services --> LocalStorage
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Presentation Layer                        │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
+│  │   Tabs      │  │   Modals    │  │   Charts    │              │
+│  │  Components │  │  Components │  │  Components │              │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘              │
+└─────────┼────────────────┼────────────────┼─────────────────────┘
+          │                │                │
+┌─────────┼────────────────┼────────────────┼─────────────────────┐
+│         ▼                ▼                ▼                      │
+│                    Business Logic Layer                          │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                    Custom Hooks                          │    │
+│  │  useStatsCalculator │ useLeagueStats │ useFirebaseData  │    │
+│  └─────────────────────────────┬───────────────────────────┘    │
+└────────────────────────────────┼────────────────────────────────┘
+                                 │
+┌────────────────────────────────┼────────────────────────────────┐
+│                                ▼                                 │
+│                         Data Layer                               │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Firebase Service Layer                      │    │
+│  │         (Firestore CRUD + Realtime Sync)                │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ### 目录结构
 
 ```
-src/
-├── App.jsx                    # 主应用组件
-├── main.jsx                   # 应用入口
-├── index.css                  # 全局样式
-├── constants/
-│   └── index.js               # 常量配置
-├── types/
-│   └── index.js               # JSDoc 类型定义
-├── hooks/
-│   ├── useStatsCalculator.js  # 统计数据计算
-│   ├── useLeagueStats.js      # 联盟极值计算
-│   ├── useFirebaseData.js     # Firebase 数据订阅
-│   └── useTheme.js            # 主题管理
-├── services/
-│   └── firebase.service.js    # Firebase CRUD 操作
-├── components/
-│   ├── common/                # 通用组件
-│   │   ├── ErrorBoundary.jsx
-│   │   ├── Avatar.jsx
-│   │   ├── Icon.jsx
-│   │   └── Clock.jsx
-│   ├── modals/                # 弹窗组件
-│   │   ├── PlayerProfileModal.jsx
-│   │   ├── SecurityModal.jsx
-│   │   ├── SettlementModal.jsx
-│   │   └── HeadToHead.jsx
-│   ├── tabs/                  # Tab 页组件
-│   │   ├── Dashboard.jsx
-│   │   ├── Leaderboard.jsx
-│   │   ├── MatchHistory.jsx
-│   │   ├── NewGameForm.jsx
-│   │   └── Settings.jsx
-│   └── layout/                # 布局组件
-│       ├── Header.jsx
-│       └── BottomNav.jsx
-├── charts/                    # 图表组件
-│   ├── CareerChart.jsx
-│   ├── ProRadarChart.jsx
-│   └── Sparkline.jsx
-├── lib/
-│   ├── firebase.js            # Firebase 配置
-│   └── utils.js               # 工具函数
-└── __tests__/                 # 测试文件
-    ├── components/
-    ├── hooks/
-    └── utils/
+league-app/
+├── electron/                    # Electron 主进程
+│   ├── main.cjs                 # 主进程入口
+│   └── preload.cjs              # 预加载脚本
+├── public/                      # 静态资源
+├── src/
+│   ├── main.jsx                 # 应用入口
+│   ├── App.jsx                  # 根组件
+│   ├── index.css                # 全局样式
+│   ├── components/
+│   │   ├── common/              # 通用组件
+│   │   │   ├── Avatar.jsx       # 头像组件
+│   │   │   ├── Icon.jsx         # 图标组件
+│   │   │   ├── Clock.jsx        # 时钟组件
+│   │   │   └── ErrorBoundary.jsx
+│   │   ├── layout/              # 布局组件
+│   │   │   ├── Header.jsx
+│   │   │   └── BottomNav.jsx
+│   │   ├── modals/              # 弹窗组件
+│   │   │   ├── PlayerProfileModal.jsx
+│   │   │   ├── HeadToHead.jsx
+│   │   │   ├── SecurityModal.jsx
+│   │   │   └── SettlementModal.jsx
+│   │   └── tabs/                # 页面组件
+│   │       ├── Dashboard.jsx
+│   │       ├── Leaderboard.jsx
+│   │       ├── MatchHistory.jsx
+│   │       ├── NewGameForm.jsx
+│   │       └── Settings.jsx
+│   ├── charts/                  # 图表组件
+│   │   ├── CareerChart.jsx      # 生涯曲线图
+│   │   ├── ProRadarChart.jsx    # 能力雷达图
+│   │   └── Sparkline.jsx        # 迷你趋势图
+│   ├── hooks/                   # 自定义 Hooks
+│   │   ├── useStatsCalculator.js
+│   │   ├── useLeagueStats.js
+│   │   ├── useFirebaseData.js
+│   │   └── useTheme.js
+│   ├── services/                # 服务层
+│   │   └── firebase.service.js
+│   ├── lib/                     # 工具库
+│   │   ├── firebase.js          # Firebase 配置
+│   │   └── utils.js             # 工具函数
+│   ├── constants/               # 常量定义
+│   │   └── index.js
+│   ├── types/                   # 类型定义
+│   │   └── index.js
+│   └── __tests__/               # 测试文件
+│       ├── components/
+│       ├── hooks/
+│       └── utils/
+├── package.json
+├── vite.config.js
+├── tailwind.config.js
+├── vitest.config.js
+└── eslint.config.js
 ```
 
-## 核心模块说明
+## 📚 核心模块
 
 ### Custom Hooks
 
-| Hook | 功能 |
-|------|------|
-| `useStatsCalculator` | 计算玩家统计数据（场均分、胜率、战力值等） |
-| `useLeagueStats` | 计算联盟极值（最高/最低场均分等） |
-| `useFirebaseData` | 订阅 Firebase 实时数据 |
-| `useTheme` | 管理主题切换和持久化 |
+| Hook | 职责 | 输入 | 输出 |
+|:-----|:-----|:-----|:-----|
+| `useStatsCalculator` | 玩家统计计算 | 比赛记录 | 场均分、胜率、战力值 |
+| `useLeagueStats` | 联盟极值计算 | 玩家列表 | 最高/最低各项指标 |
+| `useFirebaseData` | 实时数据订阅 | 集合路径 | 实时数据流 |
+| `useTheme` | 主题状态管理 | - | 主题状态、切换方法 |
 
-### Services
+### 数据模型
 
-| Service | 功能 |
-|---------|------|
-| `firebase.service.js` | 封装所有 Firebase CRUD 操作 |
+```javascript
+// 玩家数据结构
+Player {
+  id: string
+  name: string
+  avatar: string
+  stats: {
+    totalGames: number
+    totalScore: number
+    avgScore: number
+    winRate: number
+    powerRating: number
+  }
+}
 
-### Components
+// 比赛数据结构
+Match {
+  id: string
+  date: timestamp
+  players: Player[]
+  scores: number[]
+  winner: string
+}
+```
 
-| 类别 | 组件 |
-|------|------|
-| Common | Avatar, Icon, Clock, ErrorBoundary |
-| Modals | PlayerProfileModal, SecurityModal, SettlementModal, HeadToHead |
-| Tabs | Dashboard, Leaderboard, MatchHistory, NewGameForm, Settings |
-| Layout | Header, BottomNav |
-| Charts | CareerChart, ProRadarChart, Sparkline |
+## 🧪 测试策略
 
-## 贡献指南
+### 测试金字塔
+
+```
+        ┌───────────┐
+        │   E2E     │  ← Playwright (计划中)
+        ├───────────┤
+        │Integration│  ← Vitest + Testing Library
+        ├───────────┤
+        │   Unit    │  ← Vitest + fast-check
+        └───────────┘
+```
+
+### 测试覆盖
+
+- **单元测试**: 工具函数、Hooks、纯组件
+- **属性测试**: 核心算法（统计计算、排序逻辑）
+- **组件测试**: UI 组件渲染、交互行为
+- **快照测试**: 组件结构稳定性
+
+## 👥 贡献指南
 
 ### 开发流程
 
-1. Fork 本仓库
-2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add some amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 创建 Pull Request
-
-### 代码规范
-
-- 使用 ESLint 进行代码检查：`npm run lint`
-- 组件使用 PascalCase 命名
-- 函数和变量使用 camelCase 命名
-- 常量使用 SCREAMING_SNAKE_CASE 命名
-- 所有导出函数需添加 JSDoc 注释
+1. **Fork** 本仓库
+2. 创建功能分支: `git checkout -b feature/your-feature`
+3. 提交更改: `git commit -m 'feat: add your feature'`
+4. 推送分支: `git push origin feature/your-feature`
+5. 创建 **Pull Request**
 
 ### 提交规范
 
-使用 [Conventional Commits](https://www.conventionalcommits.org/) 格式：
+遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范：
 
-- `feat:` 新功能
-- `fix:` Bug 修复
-- `docs:` 文档更新
-- `style:` 代码格式（不影响功能）
-- `refactor:` 代码重构
-- `test:` 测试相关
-- `chore:` 构建/工具相关
+| 类型 | 描述 |
+|:-----|:-----|
+| `feat` | 新功能 |
+| `fix` | Bug 修复 |
+| `docs` | 文档更新 |
+| `style` | 代码格式 |
+| `refactor` | 代码重构 |
+| `test` | 测试相关 |
+| `chore` | 构建/工具 |
 
-### 测试要求
+### 代码规范
 
-- 新功能需要添加对应的单元测试
-- 核心逻辑需要添加属性测试
-- 运行 `npm test` 确保所有测试通过
+- ESLint 检查: `npm run lint`
+- 组件命名: PascalCase
+- 函数命名: camelCase
+- 常量命名: SCREAMING_SNAKE_CASE
+- 必须添加 JSDoc 注释
 
-## 许可证
+## 📄 许可证
 
-MIT License
+本项目基于 [MIT License](LICENSE) 开源。
 
-## 联系方式
+## 💖 致谢
+特别鸣谢 Trigger女士
 
-如有问题或建议，请提交 Issue 或 Pull Request。
+本项目首席情感支持官
+
+世界上最好看的大美女
+
+本项目logo的提供者
+
+感谢不懂代码的你也愿意在无数个夜晚默默陪着我
+
+爱你(´∀｀)♡
+---
+
+<p align="center">
+  <sub>Built with ❤️ by 145 League Team</sub>
+</p>
