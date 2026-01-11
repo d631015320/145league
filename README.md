@@ -440,6 +440,7 @@ git push origin feature/amazing-feature
         <li>📚 学习和实践 React、Firebase、Electron 等现代 Web 技术</li>
         <li>📊 研究数据可视化和统计分析算法</li>
         <li>🏗️ 探索前端工程化和架构设计</li>
+        <li>🏗️ 利用本项目DIY相关联赛</li>
       </ul>
     </td>
   </tr>
