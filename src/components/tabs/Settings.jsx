@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import Icon from '../common/Icon';
-import { updateDoc, doc, setDoc, deleteDoc, getDoc, signInWithEmailAndPassword, signOut } from '../../lib/firebase'; // 注意路径 ../../
+import { useState } from 'react'
+import Icon from '../common/Icon'
+import { signIn, signOut, updateRealName, renamePlayer } from '../../services/db.service'
 
 const Settings = ({ 
     user, 
@@ -8,8 +8,6 @@ const Settings = ({
     allPlayerNames, 
     playerProfiles, 
     matchHistory,
-    auth,
-    db,
     onTriggerSecurity 
 }) => {
     // 本地状态
@@ -23,59 +21,50 @@ const Settings = ({
     // --- 逻辑函数 ---
     
     const handleLogin = async (e) => {
-        e.preventDefault();
-        try { await signInWithEmailAndPassword(auth, loginEmail, loginPwd); setLoginEmail(""); setLoginPwd(""); } 
-        catch(err) { alert("登录失败: " + err.message); }
-    };
+        e.preventDefault()
+        try { 
+            await signIn(loginEmail, loginPwd)
+            setLoginEmail('')
+            setLoginPwd('')
+        } catch(err) { 
+            alert('登录失败: ' + err.message)
+        }
+    }
 
     const handleLogout = async () => {
-        try { await signOut(auth); alert("已安全退出"); } 
-        catch (e) { console.error(e); }
-    };
+        try { 
+            await signOut()
+            alert('已安全退出')
+        } catch (e) { 
+            alert('退出失败: ' + e.message)
+        }
+    }
 
     const handleUpdateRealName = async () => {
-        if (!realNameTarget || !realNameInput) return alert("请填写完整");
+        if (!realNameTarget || !realNameInput) return alert('请填写完整')
         try {
-            await setDoc(doc(db, "profiles", realNameTarget), { realName: realNameInput }, { merge: true });
-            alert(`绑定成功！\n网名：${realNameTarget}\n真名：${realNameInput}`);
-            setRealNameInput('');
-        } catch (e) { alert("绑定失败: " + e.message); }
-    };
+            await updateRealName(realNameTarget, realNameInput)
+            alert(`绑定成功！\n网名：${realNameTarget}\n真名：${realNameInput}`)
+            setRealNameInput('')
+        } catch (e) { 
+            alert('绑定失败: ' + e.message)
+        }
+    }
 
     const handleRenamePlayer = async () => {
-        if (!renameFrom || !renameTo) return alert("请选择原名并输入新名");
-        if (renameFrom === renameTo) return alert("新旧名字不能相同");
-        if (!confirm(`⚠️ 高危操作警告！\n即将把 "${renameFrom}" 变更为 "${renameTo}"。\n数据将自动合并，确定吗？`)) return;
+        if (!renameFrom || !renameTo) return alert('请选择原名并输入新名')
+        if (renameFrom === renameTo) return alert('新旧名字不能相同')
+        if (!confirm(`⚠️ 高危操作警告！\n即将把 "${renameFrom}" 变更为 "${renameTo}"。\n数据将自动合并，确定吗？`)) return
 
         try {
-            const matchesToUpdate = [];
-            matchHistory.forEach(m => {
-                let updated = false;
-                const newResults = m.results.map(r => { if (r.name === renameFrom) { updated = true; return { ...r, name: renameTo }; } return r; });
-                let newRoster = m.roster || [];
-                if (newRoster.includes(renameFrom)) { updated = true; newRoster = newRoster.map(n => n === renameFrom ? renameTo : n); }
-                let newTransactions = m.transactions || [];
-                let txUpdated = false;
-                newTransactions = newTransactions.map(t => { const tMod = {...t}; if (t.buyer === renameFrom) { tMod.buyer = renameTo; txUpdated = true; } if (t.seller === renameFrom) { tMod.seller = renameTo; txUpdated = true; } return tMod; });
-                if (txUpdated) updated = true;
-                const newStacks = {...(m.finalStacks || {})};
-                if (newStacks[renameFrom] !== undefined) { newStacks[renameTo] = newStacks[renameFrom]; delete newStacks[renameFrom]; updated = true; }
-                let newMvp = m.votedMvp; if (newMvp === renameFrom) { newMvp = renameTo; updated = true; }
-                let newLucky = m.luckyPlayer; if (newLucky === renameFrom) { newLucky = renameTo; updated = true; }
-                if (updated) { matchesToUpdate.push({ ref: doc(db, "matches", m.id), data: { results: newResults, roster: newRoster, transactions: newTransactions, finalStacks: newStacks, votedMvp: newMvp, luckyPlayer: newLucky } }); }
-            });
-            await Promise.all(matchesToUpdate.map(item => updateDoc(item.ref, item.data)));
-            
-            // 迁移 Profile
-            const oldProfileRef = doc(db, "profiles", renameFrom);
-            const newProfileRef = doc(db, "profiles", renameTo);
-            const oldProfileSnap = await getDoc(oldProfileRef);
-            if (oldProfileSnap.exists()) { await setDoc(newProfileRef, oldProfileSnap.data(), { merge: true }); await deleteDoc(oldProfileRef); }
-            
-            alert(`成功！已更新 ${matchesToUpdate.length} 场比赛记录。`);
-            setRenameFrom(''); setRenameTo('');
-        } catch (e) { alert("更名失败: " + e.message); }
-    };
+            const count = await renamePlayer(renameFrom, renameTo, matchHistory)
+            alert(`成功！已更新 ${count} 场比赛记录。`)
+            setRenameFrom('')
+            setRenameTo('')
+        } catch (e) { 
+            alert('更名失败: ' + e.message)
+        }
+    }
 
     const exportCloudData = () => {
         const data = { history: matchHistory, profiles: playerProfiles };

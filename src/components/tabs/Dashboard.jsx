@@ -1,6 +1,7 @@
-import { memo } from 'react';
-import Icon from '../common/Icon';
-import Avatar from '../common/Avatar';
+import { memo } from 'react'
+import Icon from '../common/Icon'
+import Avatar from '../common/Avatar'
+import { formatDate } from '../../lib/utils'
 
 const Dashboard = ({ 
     statsData, 
@@ -220,7 +221,7 @@ const Dashboard = ({
                                 {selectedSeason === 'all' ? '最新比赛' : `S${selectedSeason.slice(1)} 赛季收官战`}
                             </div>
                             <div className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-3">
-                                {statsData.latestMatch.date}
+                                {formatDate(statsData.latestMatch.date)}
                                 <span className="text-sm font-normal text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">{statsData.latestMatch.totalPlayers} 人参赛</span>
                             </div>
                         </div>

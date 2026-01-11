@@ -1,5 +1,6 @@
-import { memo } from 'react';
-import Icon from '../common/Icon';
+import { memo } from 'react'
+import Icon from '../common/Icon'
+import { formatDate } from '../../lib/utils'
 
 const MatchHistory = ({ 
     matches, 
@@ -17,12 +18,12 @@ const MatchHistory = ({
                     id={`match-${m.id}`}
                     key={m.id} 
                     role="listitem"
-                    aria-label={`${m.date} 比赛，${m.totalPlayers}人参赛`}
+                    aria-label={`${formatDate(m.date)} 比赛，${m.totalPlayers}人参赛`}
                     className={`glass-panel rounded-xl overflow-hidden group border border-slate-200 dark:border-slate-700/50 ${highlightMatchId === m.id ? 'animate-pulse-highlight ring-2 ring-emerald-500 dark:ring-emerald-400' : ''}`}
                 >
                     <div className="bg-slate-50 dark:bg-slate-800/60 p-3 px-4 flex justify-between items-center border-b border-slate-200 dark:border-slate-700/50">
                         <div className="flex items-center gap-3">
-                            <span className="font-mono text-emerald-600 dark:text-emerald-400 text-sm font-bold">{m.date}</span>
+                            <span className="font-mono text-emerald-600 dark:text-emerald-400 text-sm font-bold">{formatDate(m.date)}</span>
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold">{matchSeasons[m.id]}</span>
                             <span className="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">{m.totalPlayers} 人参赛</span>
                         </div>

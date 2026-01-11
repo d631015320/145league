@@ -132,3 +132,18 @@ export const calculateSettlements = (results) => {
     
     return transactions;
 };
+
+
+/**
+ * 格式化日期为 YYYY-MM-DD 格式
+ * @param {string} dateString - 日期字符串（支持 ISO 格式或 YYYY-MM-DD）
+ * @returns {string} 格式化后的日期字符串
+ */
+export const formatDate = (dateString) => {
+  if (!dateString) return ''
+  // 如果已经是 YYYY-MM-DD 格式，直接返回
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString
+  // 否则解析并格式化
+  const date = new Date(dateString)
+  return date.toISOString().slice(0, 10)
+}

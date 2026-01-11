@@ -1,0 +1,8 @@
+{
+    "kiroAgent.configureMCP": "Enabled",
+    "javascript.autoClosingTags": false,
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "terminal.integrated.env.windows": {
+        "LANG": "zh_CN.UTF-8"
+    }
+}

@@ -5,14 +5,13 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { GAMES_PER_SEASON, TAB_CONFIG, NETWORK_TIMEOUT } from './constants';
 
 // --- 自定义 Hooks ---
-import useFirebaseData from './hooks/useFirebaseData';
+import useData from './hooks/useData'
 import useLeagueStats from './hooks/useLeagueStats';
 import useStatsCalculator from './hooks/useStatsCalculator';
 import useTheme from './hooks/useTheme';
 
-// --- Firebase 服务 ---
-import { saveMatch, deleteMatch, uploadAvatar } from './services/firebase.service';
-import { auth, signInWithEmailAndPassword } from './lib/firebase';
+// --- 数据库服务 ---
+import { saveMatch, deleteMatch, uploadAvatar, signIn } from './services/db.service'
 
 // --- 公共组件 ---
 import Icon from './components/common/Icon.jsx';
@@ -37,7 +36,7 @@ const App = () => {
   // ===========================
 
   // 使用自定义 Hooks
-  const { matchHistory, playerProfiles, user, isAdmin, loading } = useFirebaseData();
+  const { matchHistory, playerProfiles, user, isAdmin, loading } = useData()
   const { theme, toggleTheme, isDark } = useTheme();
   const leagueStats = useLeagueStats(matchHistory);
 
@@ -196,15 +195,15 @@ const App = () => {
   }, []);
 
   const confirmSecurity = useCallback(async (password) => {
-    if (!password) return alert('请输入密码');
+    if (!password) return alert('请输入密码')
     try {
-      await signInWithEmailAndPassword(auth, user.email, password);
-      setIsSecModalOpen(false);
-      alert('验证成功！请再次点击按钮执行操作 (鉴权已通过)');
+      await signIn(user.email, password)
+      setIsSecModalOpen(false)
+      alert('验证成功！请再次点击按钮执行操作 (鉴权已通过)')
     } catch {
-      alert('密码错误，验证失败');
+      alert('密码错误，验证失败')
     }
-  }, [user]);
+  }, [user])
 
   // ===========================
   // E. 渲染 (Render)
@@ -365,8 +364,6 @@ const App = () => {
               allPlayerNames={allPlayerNames}
               playerProfiles={playerProfiles}
               matchHistory={matchHistory}
-              auth={auth}
-              db={null}
               onTriggerSecurity={handleTriggerSecurity}
             />
           )}

@@ -7,15 +7,18 @@
 
 import {
   db,
+  auth,
   collection,
   addDoc,
   updateDoc,
   deleteDoc,
   doc,
   setDoc,
-  getDoc
-} from '../lib/firebase';
-import { ERROR_MESSAGES } from '../constants';
+  getDoc,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut
+} from '../lib/firebase'
+import { ERROR_MESSAGES } from '../constants'
 
 /**
  * 获取用户友好的错误消息
@@ -232,4 +235,30 @@ export function downloadBackup(matchHistory, playerProfiles) {
   a.download = `PokerData_Backup_${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * 登录
+ * @param {string} email - 邮箱
+ * @param {string} password - 密码
+ */
+export async function signIn(email, password) {
+  try {
+    await signInWithEmailAndPassword(auth, email, password)
+  } catch (error) {
+    const message = getErrorMessage(error)
+    throw new Error(`登录失败: ${message}`)
+  }
+}
+
+/**
+ * 登出
+ */
+export async function signOut() {
+  try {
+    await firebaseSignOut(auth)
+  } catch (error) {
+    const message = getErrorMessage(error)
+    throw new Error(`登出失败: ${message}`)
+  }
 }
