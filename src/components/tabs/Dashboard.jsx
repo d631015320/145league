@@ -3,6 +3,7 @@ import Icon from '../common/Icon'
 import Avatar from '../common/Avatar'
 import { formatDate } from '../../lib/utils'
 import { useIsMobile, useIsSmallScreen } from '../../hooks/useMediaQuery'
+import { getPowerTextColor } from '../../lib/powerColor'
 
 const Dashboard = ({
     statsData,
@@ -89,7 +90,7 @@ const Dashboard = ({
                                     <div className="absolute -bottom-1 sm:-bottom-2 -right-0.5 sm:-right-1 bg-slate-300 text-slate-700 text-[8px] sm:text-[10px] font-black px-1 sm:px-1.5 rounded shadow-sm" aria-hidden="true">2</div>
                                 </div>
                                 <div className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 mb-0.5 sm:mb-1 truncate max-w-[60px] sm:max-w-none">{second.name}</div>
-                                <div className="text-[10px] sm:text-xs font-mono text-slate-400">
+                                <div className={`text-[10px] sm:text-xs font-mono ${getPowerTextColor(second.powerScore)}`}>
                                     {Math.round(second.powerScore)} <span className="text-[8px] sm:text-[10px] opacity-70">pts</span>
                                 </div>
                                 {/* 领奖台柱子 */}
@@ -139,7 +140,7 @@ const Dashboard = ({
                                     <div className="absolute -bottom-1 sm:-bottom-2 -right-0.5 sm:-right-1 bg-orange-300 text-orange-800 text-[8px] sm:text-[10px] font-black px-1 sm:px-1.5 rounded shadow-sm" aria-hidden="true">3</div>
                                 </div>
                                 <div className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 mb-0.5 sm:mb-1 truncate max-w-[60px] sm:max-w-none">{third.name}</div>
-                                <div className="text-[10px] sm:text-xs font-mono text-slate-400">
+                                <div className={`text-[10px] sm:text-xs font-mono ${getPowerTextColor(third.powerScore)}`}>
                                     {Math.round(third.powerScore)} <span className="text-[8px] sm:text-[10px] opacity-70">pts</span>
                                 </div>
                                 {/* 领奖台柱子 */}
@@ -200,8 +201,8 @@ const Dashboard = ({
                             const dimFirst = dimTop3[0];
                             if (!dimFirst) return null;
                             return (
-                                <div 
-                                    key={dim.key} 
+                                <div
+                                    key={dim.key}
                                     className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
                                 >
                                     {/* 维度图标和标签 */}
@@ -248,18 +249,14 @@ const Dashboard = ({
                 </div>
             </div>
 
-            {/* 最新比赛 - 采用历史页面风格 */}
-            {statsData.latestMatch && (
+            {/* 最近比赛 - 显示最近 2 场 */}
+            {statsData.recentMatches && statsData.recentMatches.length > 0 && (
                 <div className="glass-panel rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700/50 mt-6">
                     {/* 卡片头部 */}
                     <div className="bg-slate-50 dark:bg-slate-800/60 p-3 px-4 flex justify-between items-center border-b border-slate-200 dark:border-slate-700/50">
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                            <span className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">
-                                {selectedSeason === 'all' ? '最新比赛' : `S${selectedSeason.slice(1)} 收官战`}
-                            </span>
-                            <span className="font-mono text-emerald-600 dark:text-emerald-400 text-sm font-bold">{formatDate(statsData.latestMatch.date)}</span>
-                            <span className="text-slate-500 dark:text-slate-400 text-xs">{statsData.latestMatch.totalPlayers} 人参赛</span>
-                        </div>
+                        <span className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">
+                            最近比赛
+                        </span>
                         <button
                             onClick={onNavigateToHistory}
                             aria-label="查看全部比赛记录"
@@ -268,13 +265,28 @@ const Dashboard = ({
                             全部 <Icon name="arrow-right" className="w-3 h-3" aria-hidden="true" />
                         </button>
                     </div>
-                    {/* 参赛者网格 - 与历史页面一致 */}
-                    <div className={`p-3 sm:p-4 grid gap-2 sm:gap-3 ${isMobile ? 'grid-cols-3' : 'grid-cols-4 lg:grid-cols-5'}`}>
-                        {statsData.latestMatch.results.slice(0, latestMatchDisplayCount).map((r, i) => (
-                            <div key={i} className={`relative p-2 rounded border flex flex-col items-center justify-center text-center transition-colors ${r.rank===1 ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-500/10 dark:border-yellow-500/30' : 'bg-white dark:bg-slate-800/30 border-slate-100 dark:border-slate-700/30'}`}>
-                                <span className={`text-[10px] font-bold absolute top-1 left-1.5 ${r.rank===1?'text-yellow-600 dark:text-yellow-500':'text-slate-400'}`}>#{r.rank}</span>
-                                <div className={`font-bold text-slate-700 dark:text-slate-200 mt-1 mb-1 truncate w-full ${isMobile ? 'text-xs' : 'text-sm'}`}>{r.name}</div>
-                                <div className={`font-mono ${isMobile ? 'text-[10px]' : 'text-xs'} text-emerald-600 dark:text-emerald-400 font-bold`}>+{r.score}</div>
+
+                    {/* 多场比赛列表 */}
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                        {statsData.recentMatches.map((match, matchIdx) => (
+                            <div key={matchIdx} className="p-3 sm:p-4">
+                                {/* 比赛信息 */}
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="font-mono text-emerald-600 dark:text-emerald-400 text-sm font-bold">{formatDate(match.date)}</span>
+                                    <span className="text-slate-400 dark:text-slate-500 text-xs">•</span>
+                                    <span className="text-slate-500 dark:text-slate-400 text-xs">{match.totalPlayers} 人参赛</span>
+                                </div>
+
+                                {/* 参赛者网格 - 显示前 8 名 */}
+                                <div className={`grid gap-2 sm:gap-3 ${isMobile ? 'grid-cols-4' : 'grid-cols-4 lg:grid-cols-8'}`}>
+                                    {match.results.slice(0, isMobile ? 6 : 8).map((r, i) => (
+                                        <div key={i} className={`relative p-2 rounded border flex flex-col items-center justify-center text-center transition-colors ${r.rank === 1 ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-500/10 dark:border-yellow-500/30' : 'bg-white dark:bg-slate-800/30 border-slate-100 dark:border-slate-700/30'}`}>
+                                            <span className={`text-[10px] font-bold absolute top-1 left-1.5 ${r.rank === 1 ? 'text-yellow-600 dark:text-yellow-500' : 'text-slate-400'}`}>#{r.rank}</span>
+                                            <div className={`font-bold text-slate-700 dark:text-slate-200 mt-1 mb-1 truncate w-full ${isMobile ? 'text-xs' : 'text-sm'}`}>{r.name}</div>
+                                            <div className={`font-mono ${isMobile ? 'text-[10px]' : 'text-xs'} text-emerald-600 dark:text-emerald-400 font-bold`}>+{r.score}</div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         ))}
                     </div>

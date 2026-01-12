@@ -158,19 +158,21 @@ function useLeagueStats(matchHistory) {
     const totalChips = Object.values(tempStats).reduce((sum, p) => sum + p.chips, 0);
     const leagueAvgChips = totalGamesAll > 0 ? totalChips / totalGamesAll : 0;
 
-    // 计算联盟平均筹码标准差（用于稳定性贝叶斯修正）
-    let totalChipStdDev = 0;
-    let playerCountForStdDev = 0;
+    // 计算联盟平均稳定性指数（场均筹码/标准差，用于贝叶斯修正）
+    let totalStabilityIndex = 0;
+    let playerCountForStability = 0;
     Object.values(tempStats).forEach(p => {
       if (p.games >= 2) {  // 至少2场才能计算标准差
         const avgChip = p.chips / p.games;
         const variance = p.chipsList.reduce((sum, c) => sum + Math.pow(c - avgChip, 2), 0) / p.games;
         const stdDev = Math.sqrt(variance);
-        totalChipStdDev += stdDev;
-        playerCountForStdDev += 1;
+        // 稳定性指数 = 场均筹码 / max(标准差, 100)，避免除零
+        const stabilityIndex = avgChip / Math.max(stdDev, 100);
+        totalStabilityIndex += stabilityIndex;
+        playerCountForStability += 1;
       }
     });
-    const leagueAvgChipStdDev = playerCountForStdDev > 0 ? totalChipStdDev / playerCountForStdDev : 800;
+    const leagueAvgStabilityIndex = playerCountForStability > 0 ? totalStabilityIndex / playerCountForStability : 0;
 
     // 贝叶斯修正后MVP率的极值
     let maxAdjustedMvpRate = 0;
@@ -283,19 +285,24 @@ function useLeagueStats(matchHistory) {
         minAdjustedMvpRate = adjustedMvpRate;
       }
 
-      // 计算稳定性得分（基于筹码标准差，贝叶斯修正）
-      // 筹码标准差越小 = 越稳定
-      let rawChipStdDev = 0;
+      // 计算稳定性指数（场均筹码 / 标准差，类似夏普比率）
+      // 赢得多且稳定 = 高分，输钱或波动大 = 低分
+      let rawStabilityIndex = 0;
       if (p.games >= 2) {
         const avgChip = p.chips / p.games;
         const variance = p.chipsList.reduce((sum, c) => sum + Math.pow(c - avgChip, 2), 0) / p.games;
-        rawChipStdDev = Math.sqrt(variance);
+        const stdDev = Math.sqrt(variance);
+        // 稳定性指数 = 场均筹码 / max(标准差, 100)，避免除零
+        rawStabilityIndex = avgChip / Math.max(stdDev, 100);
+      } else {
+        // 只打1场，使用场均筹码 / 100 作为稳定性指数
+        rawStabilityIndex = avgChips / 100;
       }
       // 贝叶斯修正：场次少的人向联盟平均靠拢
-      const adjustedChipStdDev = (rawChipStdDev * p.games + leagueAvgChipStdDev * priorGames) / (p.games + priorGames);
-      // 稳定性得分：标准差越小得分越高（反向归一化）
-      // 使用 1000 作为标准差上限参考值
-      const stabilityScore = Math.max(0, Math.min(100, (1 - adjustedChipStdDev / 1500) * 100));
+      const adjustedStabilityIndex = (rawStabilityIndex * p.games + leagueAvgStabilityIndex * priorGames) / (p.games + priorGames);
+      // 稳定性得分：将稳定性指数映射到 0-100
+      // 假设稳定性指数范围大约在 -5 到 +5 之间
+      const stabilityScore = Math.max(0, Math.min(100, (adjustedStabilityIndex + 5) * 10));
 
       // 计算掠夺的贝叶斯修正值（使用赛季平均场均筹码作为先验）
       const adjustedPlunder = (avgChips * p.games + leagueAvgChips * priorGames) / (p.games + priorGames);
@@ -405,7 +412,7 @@ function useLeagueStats(matchHistory) {
       // 赛季平均场均筹码（用于掠夺动态先验）
       leagueAvgChips,
       // 联盟平均筹码标准差（用于稳定性贝叶斯修正）
-      leagueAvgChipStdDev,
+      leagueAvgStabilityIndex,
       // 赛季总场次
       totalMatches: matchHistory.length,
       // 贝叶斯修正后打折的极值（用于归一化）

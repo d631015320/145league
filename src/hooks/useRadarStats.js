@@ -21,12 +21,12 @@ export function getAttendanceTier(attendanceRate) {
 
 /**
  * 雷达图维度标签
- * 顺序：统治 → 效率 → 掠夺 → 胜场 → 击败 → MVP → 稳定
+ * 顺序按权重排列：统治 → 效率 → 掠夺 → 击败 → 胜场 → 稳定 → MVP
  */
 export const RADAR_LABELS = [
   {
     zh: '统治',
-    en: 'RULE',
+    en: 'DOM',
     key: 'domination',
     description: '拿第1的能力（大吉大利😋今晚吃鸡）'
   },
@@ -38,9 +38,15 @@ export const RADAR_LABELS = [
   },
   {
     zh: '掠夺',
-    en: 'Plunder',
+    en: 'PLU',
     key: 'plunder',
     description: '抢筹码能力（得分多，赢码也多，交出你的米🔫）'
+  },
+  {
+    zh: '击败',
+    en: 'K.O',
+    key: 'knockout',
+    description: '击败对手的能力（嘿嘿~进决赛圈不算输🐎）'
   },
   {
     zh: '胜场',
@@ -49,38 +55,31 @@ export const RADAR_LABELS = [
     description: '赢码能力（明天的早饭钱省咯🍚）'
   },
   {
-    zh: '击败',
-    en: 'KO',
-    key: 'knockout',
-    description: '击败对手的能力（嘿嘿~进决赛圈不算输🐎）'
+    zh: '稳定',
+    en: 'STA',
+    key: 'stability',
+    description: '稳定赢钱能力（赢得多还波动小🤑才是真大佬，稳定输钱可不算稳定哦~）'
   },
   {
     zh: 'MVP',
     en: 'MVP',
     key: 'mvp',
     description: '公认实力（大家都说你厉害，那你就是厉害👍）'
-  },
-  {
-    zh: '稳定',
-    en: 'STABLE',
-    key: 'stability',
-    description: '发挥稳定性（发挥老稳定了，稳定排在最后😭）'
   }
 ]
 
 /**
  * 战力权重配置
- * 稳定性不计入战力（只打1场的玩家标准差为0，会得100分）
- * 统治21% + 效率21% + 掠夺19% + 击败16% + 胜场13% + MVP10% = 100%
+ * 统治18% + 效率18% + 掠夺17% + 击败16% + 胜场12% + MVP8% + 稳定11% = 100%
  */
 export const POWER_WEIGHTS = {
-  domination: 0.21,  // 统治 21%
-  efficiency: 0.21,  // 效率 21%
-  plunder: 0.19,     // 掠夺 19%
+  domination: 0.18,  // 统治 18%
+  efficiency: 0.18,  // 效率 18%
+  plunder: 0.17,     // 掠夺 17%
   knockout: 0.16,    // 击败 16%
-  chipWin: 0.13,     // 胜场 13%
-  mvp: 0.10,         // MVP 10%
-  stability: 0       // 稳定 0%（不计入战力）
+  chipWin: 0.12,     // 胜场 12%
+  mvp: 0.08,         // MVP 8%
+  stability: 0.11    // 稳定 11%
 }
 
 /**
@@ -149,18 +148,26 @@ export function calculatePowerScore(playerData, leagueStats, activeCoeff = 1.0, 
     return Math.max(0, Math.min(100, ((value - min) / range) * 100))
   }
 
-  // 1. 稳定性原始值（基于筹码标准差，贝叶斯修正）
-  let rawChipStdDev = 0
+  // 1. 稳定性原始值（场均筹码/标准差，类似夏普比率）
+  // 赢得多且稳定 = 高分，输钱或波动大 = 低分
+  let rawStabilityIndex = 0
   if (gamesPlayed >= 2 && chipsList.length >= 2) {
     const avgChipForStd = chipsList.reduce((a, b) => a + b, 0) / chipsList.length
     const variance = chipsList.reduce((a, b) => a + Math.pow(b - avgChipForStd, 2), 0) / chipsList.length
-    rawChipStdDev = Math.sqrt(variance)
+    const stdDev = Math.sqrt(variance)
+    // 稳定性指数 = 场均筹码 / max(标准差, 100)，避免除零
+    rawStabilityIndex = avgChipForStd / Math.max(stdDev, 100)
+  } else {
+    // 只打1场，使用场均筹码 / 100 作为稳定性指数
+    const avgChipForStd = chipsList.reduce((a, b) => a + b, 0) / chipsList.length
+    rawStabilityIndex = avgChipForStd / 100
   }
   // 贝叶斯修正：场次少的人向联盟平均靠拢
-  const leagueAvgChipStdDev = leagueStats?.leagueAvgChipStdDev || 800
-  const adjustedChipStdDev = (rawChipStdDev * gamesPlayed + leagueAvgChipStdDev * priorGames) / (gamesPlayed + priorGames)
-  // 稳定性得分：标准差越小得分越高（反向归一化）
-  const rawStability = Math.max(0, Math.min(100, (1 - adjustedChipStdDev / 1500) * 100))
+  const leagueAvgStabilityIndex = leagueStats?.leagueAvgStabilityIndex || 0
+  const adjustedStabilityIndex = (rawStabilityIndex * gamesPlayed + leagueAvgStabilityIndex * priorGames) / (gamesPlayed + priorGames)
+  // 稳定性得分：将稳定性指数映射到 0-100
+  // 假设稳定性指数范围大约在 -5 到 +5 之间
+  const rawStability = Math.max(0, Math.min(100, (adjustedStabilityIndex + 5) * 10))
 
   // 2. 效率原始值（贝叶斯修正后的场均得分）
   const avgPlayers = sumPlayers / gamesPlayed
@@ -270,21 +277,25 @@ function useRadarStats(leagueStats, seasonTotalGames = 10) {
     // 动态先验场次：√举办场次 × 2
     const priorGames = calculatePriorGames(seasonTotalGames)
 
-    // 1. 稳定性 (Stability) - 基于筹码标准差，贝叶斯修正，值域 0-100
-    // 筹码标准差越小 = 越稳定
+    // 1. 稳定性 (Stability) - 场均筹码/标准差，类似夏普比率
+    // 赢得多且稳定 = 高分，输钱或波动大 = 低分
     const chipsList = targetMatches.map(m => parseFloat(m.result?.chips) || 0)
     const avgChipForStd = chipsList.reduce((a, b) => a + b, 0) / chipsList.length
-    let rawChipStdDev = 0
+    let rawStabilityIndex = 0
     if (targetTotalGames >= 2) {
       const variance = chipsList.reduce((a, b) => a + Math.pow(b - avgChipForStd, 2), 0) / chipsList.length
-      rawChipStdDev = Math.sqrt(variance)
+      const stdDev = Math.sqrt(variance)
+      // 稳定性指数 = 场均筹码 / max(标准差, 100)，避免除零
+      rawStabilityIndex = avgChipForStd / Math.max(stdDev, 100)
+    } else {
+      // 只打1场，使用场均筹码 / 100 作为稳定性指数
+      rawStabilityIndex = avgChipForStd / 100
     }
     // 贝叶斯修正：场次少的人向联盟平均靠拢
-    const leagueAvgChipStdDev = leagueStats?.leagueAvgChipStdDev || 800
-    const adjustedChipStdDev = (rawChipStdDev * targetTotalGames + leagueAvgChipStdDev * priorGames) / (targetTotalGames + priorGames)
-    // 稳定性得分：标准差越小得分越高（反向归一化）
-    // 使用 1500 作为标准差上限参考值
-    const stabilityScore = Math.max(0, Math.min(100, (1 - adjustedChipStdDev / 1500) * 100))
+    const leagueAvgStabilityIndex = leagueStats?.leagueAvgStabilityIndex || 0
+    const adjustedStabilityIndex = (rawStabilityIndex * targetTotalGames + leagueAvgStabilityIndex * priorGames) / (targetTotalGames + priorGames)
+    // 稳定性得分：将稳定性指数映射到 0-100
+    const stabilityScore = Math.max(0, Math.min(100, (adjustedStabilityIndex + 5) * 10))
 
     // 2. 效率 (Efficiency) - 贝叶斯修正后的场均得分，相对排名归一化，值域 0-100
     const totalScore = targetMatches.reduce((a, b) => a + b.result.score, 0)
@@ -405,30 +416,30 @@ function useRadarStats(leagueStats, seasonTotalGames = 10) {
           zh: RADAR_LABELS[2].zh
         },
         {
-          label: '胜场',
-          value: chipWinScore,
-          raw: `${chipWins}/${targetTotalGames}场`,
+          label: '击败',
+          value: defeatScore,
+          raw: `Rate:${(avgBeatRate * 100).toFixed(0)}%`,
           description: RADAR_LABELS[3].description,
           zh: RADAR_LABELS[3].zh
         },
         {
-          label: '击败',
-          value: defeatScore,
-          raw: `Rate:${(avgBeatRate * 100).toFixed(0)}%`,
+          label: '胜场',
+          value: chipWinScore,
+          raw: `${chipWins}/${targetTotalGames}场`,
           description: RADAR_LABELS[4].description,
           zh: RADAR_LABELS[4].zh
+        },
+        {
+          label: '稳定',
+          value: stabilityScore,
+          raw: `${adjustedStabilityIndex.toFixed(1)}`,
+          description: RADAR_LABELS[5].description,
+          zh: RADAR_LABELS[5].zh
         },
         {
           label: 'MVP',
           value: mvpScore,
           raw: `${mvpCount}/${targetTotalGames}次`,
-          description: RADAR_LABELS[5].description,
-          zh: RADAR_LABELS[5].zh
-        },
-        {
-          label: '稳定',
-          value: stabilityScore,
-          raw: `σ=${Math.round(adjustedChipStdDev)}`,
           description: RADAR_LABELS[6].description,
           zh: RADAR_LABELS[6].zh
         }
@@ -465,19 +476,24 @@ export function usePlayerRadarStats(player, playerMatches, totalGames, leagueSta
 
     // ========== 计算各维度原始值 ==========
     
-    // 1. 稳定性 - 基于筹码标准差，贝叶斯修正
+    // 1. 稳定性 - 场均筹码/标准差，类似夏普比率
     const chipsList = playerMatches.map(m => parseFloat(m.result?.chips) || 0)
     const avgChipForStd = chipsList.reduce((a, b) => a + b, 0) / chipsList.length
-    let rawChipStdDev = 0
+    let rawStabilityIndex = 0
     if (totalGames >= 2) {
       const variance = chipsList.reduce((a, b) => a + Math.pow(b - avgChipForStd, 2), 0) / chipsList.length
-      rawChipStdDev = Math.sqrt(variance)
+      const stdDev = Math.sqrt(variance)
+      // 稳定性指数 = 场均筹码 / max(标准差, 100)，避免除零
+      rawStabilityIndex = avgChipForStd / Math.max(stdDev, 100)
+    } else {
+      // 只打1场，使用场均筹码 / 100 作为稳定性指数
+      rawStabilityIndex = avgChipForStd / 100
     }
     // 贝叶斯修正：场次少的人向联盟平均靠拢
-    const leagueAvgChipStdDev = leagueStats?.leagueAvgChipStdDev || 800
-    const adjustedChipStdDev = (rawChipStdDev * totalGames + leagueAvgChipStdDev * priorGames) / (totalGames + priorGames)
-    // 稳定性得分：标准差越小得分越高（反向归一化）
-    const rawStability = Math.max(0, Math.min(100, (1 - adjustedChipStdDev / 1500) * 100))
+    const leagueAvgStabilityIndex = leagueStats?.leagueAvgStabilityIndex || 0
+    const adjustedStabilityIndex = (rawStabilityIndex * totalGames + leagueAvgStabilityIndex * priorGames) / (totalGames + priorGames)
+    // 稳定性得分：将稳定性指数映射到 0-100
+    const rawStability = Math.max(0, Math.min(100, (adjustedStabilityIndex + 5) * 10))
 
     // 2. 效率 - 贝叶斯修正后的场均得分
     const totalScore = playerMatches.reduce((a, b) => a + b.result.score, 0)
@@ -582,7 +598,7 @@ export function usePlayerRadarStats(player, playerMatches, totalGames, leagueSta
       stabilityScore * POWER_WEIGHTS.stability +
       mvpScore * POWER_WEIGHTS.mvp
 
-    // 构建雷达图数据，顺序：统治 → 效率 → 掠夺 → 胜场 → 击败 → MVP → 稳定
+    // 构建雷达图数据，顺序按权重排列：统治 → 效率 → 掠夺 → 击败 → 胜场 → 稳定 → MVP
     // value: 打折后归一化的值（用于进度条和雷达图）
     // raw: 贝叶斯修正后的值（用于右上角显示）
     const stats = [
@@ -608,30 +624,30 @@ export function usePlayerRadarStats(player, playerMatches, totalGames, leagueSta
         zh: RADAR_LABELS[2].zh
       },
       {
-        label: '胜场',
-        value: chipWinScore,
-        raw: `${(adjustedChipWinRate * 100).toFixed(0)}%`,
+        label: '击败',
+        value: defeatScore,
+        raw: `${(adjustedBeatRate * 100).toFixed(0)}%`,
         description: RADAR_LABELS[3].description,
         zh: RADAR_LABELS[3].zh
       },
       {
-        label: '击败',
-        value: defeatScore,
-        raw: `${(adjustedBeatRate * 100).toFixed(0)}%`,
+        label: '胜场',
+        value: chipWinScore,
+        raw: `${(adjustedChipWinRate * 100).toFixed(0)}%`,
         description: RADAR_LABELS[4].description,
         zh: RADAR_LABELS[4].zh
+      },
+      {
+        label: '稳定',
+        value: stabilityScore,
+        raw: `${adjustedStabilityIndex.toFixed(1)}`,
+        description: RADAR_LABELS[5].description,
+        zh: RADAR_LABELS[5].zh
       },
       {
         label: 'MVP',
         value: mvpScore,
         raw: `${(adjustedMvpRate * 100).toFixed(0)}%`,
-        description: RADAR_LABELS[5].description,
-        zh: RADAR_LABELS[5].zh
-      },
-      {
-        label: '稳定',
-        value: stabilityScore,
-        raw: `σ=${Math.round(adjustedChipStdDev)}`,
         description: RADAR_LABELS[6].description,
         zh: RADAR_LABELS[6].zh
       }

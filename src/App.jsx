@@ -15,8 +15,8 @@ import { saveMatch, deleteMatch, uploadAvatar, signIn } from './services/db.serv
 
 // --- 公共组件 ---
 import Icon from './components/common/Icon.jsx';
-import Clock from './components/common/Clock.jsx';
 import ErrorBoundary from './components/common/ErrorBoundary.jsx';
+import Header from './components/layout/Header.jsx';
 
 // --- 弹窗组件 ---
 import SecurityModal from './components/modals/SecurityModal.jsx';
@@ -222,61 +222,16 @@ const App = () => {
     <ErrorBoundary>
       <div className="min-h-screen pb-20 md:pb-0 transition-colors duration-300">
         {/* 顶部导航 */}
-        <nav className="glass-header sticky top-0 z-50 transition-all duration-300" role="navigation" aria-label="主导航">
-          <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
-                <Icon name="spade" className="w-5 h-5 fill-current" aria-hidden="true" />
-              </div>
-              <span className="text-xl font-black tracking-tight hidden sm:block">
-                145 <span className="text-emerald-500">联赛</span>
-              </span>
-            </div>
-
-            {/* 桌面端 Tab */}
-            <div className="hidden md:flex items-center bg-slate-100/50 dark:bg-slate-800/50 rounded-full p-1 border border-slate-200 dark:border-slate-700/50 backdrop-blur-sm mx-4" role="tablist" aria-label="页面导航">
-              {TAB_CONFIG.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => setActiveTab(t.id)}
-                  role="tab"
-                  aria-selected={activeTab === t.id}
-                  aria-controls={`${t.id}-panel`}
-                  aria-label={`${t.label}页面`}
-                  className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
-                    activeTab === t.id
-                      ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <Icon name={t.icon} className="w-3.5 h-3.5" aria-hidden="true" /> {t.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="hidden lg:block text-right">
-                <Clock />
-              </div>
-              <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden lg:block" aria-hidden="true"></div>
-              <button
-                onClick={toggleTheme}
-                aria-label={theme === 'light' ? '切换到暗色模式' : '切换到亮色模式'}
-                className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              >
-                {theme === 'light' ? (
-                  <Icon name="sun" className="w-5 h-5" aria-hidden="true" />
-                ) : (
-                  <Icon name="moon" className="w-5 h-5" aria-hidden="true" />
-                )}
-              </button>
-            </div>
-          </div>
-        </nav>
+        <Header
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
 
         {/* 网络错误提示 */}
         {showNetworkAlert && loading && (
-          <div 
+          <div
             className="bg-amber-500/10 border-l-4 border-amber-500 text-amber-700 dark:text-amber-400 p-4 mx-4 mt-4 rounded shadow-md flex justify-between items-start animate-slide-up"
             role="alert"
             aria-live="polite"
@@ -408,7 +363,7 @@ const App = () => {
         />
 
         {/* 移动端底部导航栏 - 增强版 */}
-        <nav 
+        <nav
           className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-[#0b0e14]/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 z-50 safe-area-bottom"
           role="navigation"
           aria-label="移动端主导航"
@@ -420,11 +375,10 @@ const App = () => {
                 onClick={() => setActiveTab(t.id)}
                 aria-label={`切换到${t.label}页面`}
                 aria-current={activeTab === t.id ? 'page' : undefined}
-                className={`nav-item flex-1 flex flex-col items-center justify-center min-h-[44px] min-w-[44px] py-2 mx-0.5 rounded-xl transition-all touch-feedback ${
-                  activeTab === t.id
-                    ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
-                    : 'text-slate-400 dark:text-slate-500 active:bg-slate-100 dark:active:bg-slate-800'
-                }`}
+                className={`nav-item flex-1 flex flex-col items-center justify-center min-h-[44px] min-w-[44px] py-2 mx-0.5 rounded-xl transition-all touch-feedback ${activeTab === t.id
+                  ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
+                  : 'text-slate-400 dark:text-slate-500 active:bg-slate-100 dark:active:bg-slate-800'
+                  }`}
               >
                 <Icon name={t.icon} className="w-6 h-6" aria-hidden="true" />
                 <span className={`text-[10px] font-medium mt-1 ${activeTab === t.id ? 'font-bold' : ''}`}>

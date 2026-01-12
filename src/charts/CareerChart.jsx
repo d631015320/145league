@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
+import { calculatePowerScore, getAttendanceTier } from '../hooks/useRadarStats';
 
-const CareerChart = ({ history, isDark }) => {
+const CareerChart = ({ history, isDark, leagueStats }) => {
     const canvasRef = useRef(null);
     const chartInstance = useRef(null);
-    const [metric, setMetric] = useState('avgScore'); // 'avgScore' | 'goldContent'
+    const [metric, setMetric] = useState('powerScore'); // 'powerScore' | 'avgScore' | 'goldContent'
 
     // 少于2场时显示提示
     if (!history || history.length < 2) {
@@ -44,7 +45,37 @@ const CareerChart = ({ history, isDark }) => {
             const gamesPlayed = i + 1;
             const slice = history.slice(0, gamesPlayed);
 
-            if (metric === 'avgScore') {
+            if (metric === 'powerScore') {
+                // 计算截至该场的战力
+                const totalScore = slice.reduce((sum, h) => sum + (h.result?.score || 0), 0);
+                const totalChips = slice.reduce((sum, h) => sum + parseFloat(h.result?.chips || 0), 0);
+                const wins = slice.filter(h => h.result?.rank === 1).length;
+                const chipWins = slice.filter(h => parseFloat(h.result?.chips || 0) > 0).length;
+                const sumPlayers = slice.reduce((sum, h) => sum + (h.totalPlayers || 8), 0);
+                const ranks = slice.map(h => h.result?.rank || 4);
+                const chipsList = slice.map(h => parseFloat(h.result?.chips || 0));
+                const sumBeatRate = slice.reduce((sum, h) => {
+                    const tp = h.totalPlayers || 8;
+                    return sum + (tp > 1 ? (tp - (h.result?.rank || 4)) / (tp - 1) : 0);
+                }, 0);
+
+                const attendanceRate = gamesPlayed / history.length;
+                const attendanceTier = getAttendanceTier(attendanceRate);
+                const activeCoeff = attendanceTier.coeff;
+
+                return calculatePowerScore({
+                    gamesPlayed,
+                    totalScore,
+                    totalChips,
+                    wins,
+                    sumBeatRate,
+                    chipWins,
+                    mvpCount: 0,
+                    sumPlayers,
+                    ranks,
+                    chipsList
+                }, leagueStats, activeCoeff, history.length);
+            } else if (metric === 'avgScore') {
                 const totalScore = slice.reduce((sum, h) => sum + (h.result?.score || 0), 0);
                 return totalScore / gamesPlayed;
             } else {
@@ -59,16 +90,18 @@ const CareerChart = ({ history, isDark }) => {
         const textColor = isDark ? '#64748b' : '#94a3b8';
 
         // 颜色配置
-        const colorConfig = metric === 'avgScore'
-            ? { border: '#3b82f6', bgStart: 'rgba(59, 130, 246, 0.4)', bgEnd: 'rgba(59, 130, 246, 0)' }
-            : { border: '#eab308', bgStart: 'rgba(234, 179, 8, 0.4)', bgEnd: 'rgba(234, 179, 8, 0)' };
+        const colorConfig = metric === 'powerScore'
+            ? { border: '#10b981', bgStart: 'rgba(16, 185, 129, 0.4)', bgEnd: 'rgba(16, 185, 129, 0)' }
+            : metric === 'avgScore'
+                ? { border: '#3b82f6', bgStart: 'rgba(59, 130, 246, 0.4)', bgEnd: 'rgba(59, 130, 246, 0)' }
+                : { border: '#eab308', bgStart: 'rgba(234, 179, 8, 0.4)', bgEnd: 'rgba(234, 179, 8, 0)' };
 
         chartInstance.current = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: history.map((_, i) => `R${i + 1}`),
                 datasets: [{
-                    label: metric === 'avgScore' ? '场均得分' : '含金量',
+                    label: metric === 'powerScore' ? '战力' : metric === 'avgScore' ? '场均得分' : '含金量',
                     data: dataPoints,
                     borderColor: colorConfig.border,
                     backgroundColor: (context) => {
@@ -123,6 +156,15 @@ const CareerChart = ({ history, isDark }) => {
         <div className="w-full">
             <div className="flex justify-end mb-2">
                 <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg flex text-xs font-bold">
+                    <button
+                        onClick={() => setMetric('powerScore')}
+                        className={`px-3 py-1 rounded-md transition-all ${metric === 'powerScore'
+                            ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                            }`}
+                    >
+                        战力
+                    </button>
                     <button
                         onClick={() => setMetric('avgScore')}
                         className={`px-3 py-1 rounded-md transition-all ${metric === 'avgScore'

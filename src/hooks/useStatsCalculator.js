@@ -63,6 +63,8 @@ function useStatsCalculator(matchHistory, selectedSeason, leagueStats, playerPro
     }
 
     latestMatch = filteredMatches[filteredMatches.length - 1];
+    // 新增：获取最近 2 场比赛
+    const recentMatches = filteredMatches.slice(-2).reverse();  // 倒序，最新的在前
     const rivalries = {};
 
     // 遍历比赛累加
@@ -89,7 +91,8 @@ function useStatsCalculator(matchHistory, selectedSeason, leagueStats, playerPro
             sumPlayers: 0,
             chipWins: 0,
             sumBeatRate: 0,
-            chipsList: []  // 每场筹码数组（用于计算筹码标准差）
+            chipsList: [],  // 每场筹码数组（用于计算筹码标准差）
+            powerTrendSnapshots: []  // 战力快照历史
           };
         }
 
@@ -139,6 +142,35 @@ function useStatsCalculator(matchHistory, selectedSeason, leagueStats, playerPro
           rivalries[key] += t.amount;
         });
       }
+
+      // === 新增：为本场比赛的所有参与者计算战力快照 ===
+      const matchesSoFar = filteredMatches.indexOf(match) + 1
+
+      match.results.forEach(r => {
+        const p = stats[r.name]
+        if (!p) return
+
+        // 计算截至本场的活跃度系数
+        const attendanceRate = p.gamesPlayed / matchesSoFar
+        const attendanceTier = getAttendanceTier(attendanceRate)
+        const activeCoeff = attendanceTier.coeff
+
+        // 计算截至本场的战力
+        const snapshotPower = calculatePowerScore({
+          gamesPlayed: p.gamesPlayed,
+          totalScore: p.totalScore,
+          totalChips: p.totalChips,
+          wins: p.wins,
+          sumBeatRate: p.sumBeatRate,
+          chipWins: p.chipWins,
+          mvpCount: p.votedMvpCount,
+          sumPlayers: p.sumPlayers,
+          ranks: p.ranks,
+          chipsList: p.chipsList
+        }, leagueStats, activeCoeff, matchesSoFar)
+
+        p.powerTrendSnapshots.push(Math.round(snapshotPower))
+      })
     });
 
     // 计算战力（使用新的统一计算函数 + 动态活跃度系数）
@@ -179,6 +211,7 @@ function useStatsCalculator(matchHistory, selectedSeason, leagueStats, playerPro
       p.goldContent = gc.toFixed(1);
       p.avatar = playerProfiles[p.name]?.avatar;
       p.recentTrend = p.recentScores.slice(-5).map(i => i.score);
+      p.powerTrend = p.powerTrendSnapshots.slice(-5);  // 最近 5 场的战力快照
     });
 
     // 排序
@@ -235,18 +268,23 @@ function useStatsCalculator(matchHistory, selectedSeason, leagueStats, playerPro
       const leagueAvgChips = leagueStats?.leagueAvgChips || 0
       const adjPlunder = (avgChips * p.gamesPlayed + leagueAvgChips * priorGames) / (p.gamesPlayed + priorGames)
 
-      // 稳定性计算（基于筹码标准差，贝叶斯修正）
-      let rawChipStdDev = 0
+      // 稳定性计算（场均筹码/标准差，类似夏普比率）
+      let rawStabilityIndex = 0
       if (p.gamesPlayed >= 2) {
         const avgChipForStd = p.totalChips / p.gamesPlayed
         const variance = p.chipsList.reduce((sum, c) => sum + Math.pow(c - avgChipForStd, 2), 0) / p.gamesPlayed
-        rawChipStdDev = Math.sqrt(variance)
+        const stdDev = Math.sqrt(variance)
+        // 稳定性指数 = 场均筹码 / max(标准差, 100)，避免除零
+        rawStabilityIndex = avgChipForStd / Math.max(stdDev, 100)
+      } else {
+        // 只打1场，使用场均筹码 / 100 作为稳定性指数
+        rawStabilityIndex = (p.totalChips / p.gamesPlayed) / 100
       }
       // 贝叶斯修正：场次少的人向联盟平均靠拢
-      const leagueAvgChipStdDev = leagueStats?.leagueAvgChipStdDev || 800
-      const adjustedChipStdDev = (rawChipStdDev * p.gamesPlayed + leagueAvgChipStdDev * priorGames) / (p.gamesPlayed + priorGames)
-      // 稳定性得分：标准差越小得分越高（反向归一化）
-      const stability = Math.max(0, Math.min(100, (1 - adjustedChipStdDev / 1500) * 100))
+      const leagueAvgStabilityIndex = leagueStats?.leagueAvgStabilityIndex || 0
+      const adjustedStabilityIndex = (rawStabilityIndex * p.gamesPlayed + leagueAvgStabilityIndex * priorGames) / (p.gamesPlayed + priorGames)
+      // 稳定性得分：将稳定性指数映射到 0-100
+      const stability = Math.max(0, Math.min(100, (adjustedStabilityIndex + 5) * 10))
 
       return {
         ...p,
@@ -360,6 +398,7 @@ function useStatsCalculator(matchHistory, selectedSeason, leagueStats, playerPro
       dimensionTop3,
       highestSingle,
       latestMatch,
+      recentMatches,
       biggestRivalry
     };
   }, [matchHistory, selectedSeason, leagueStats, playerProfiles, sortConfig]);

@@ -4,6 +4,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import Icon from '../common/Icon'
 import Avatar from '../common/Avatar'
+import PowerBadge from '../common/PowerBadge'
+import AnimatedNumber from '../common/AnimatedNumber'
 import CareerChart from '../../charts/CareerChart'
 import HeadToHead from './HeadToHead'
 import PlayerBadges from './PlayerBadges'
@@ -14,6 +16,7 @@ import usePlayerMatches from '../../hooks/usePlayerMatches'
 import useBadges from '../../hooks/useBadges'
 import { usePlayerRadarStats } from '../../hooks/useRadarStats'
 import { useIsMobile } from '../../hooks/useMediaQuery'
+import useCountUp from '../../hooks/useCountUp'
 
 const PlayerProfileModal = ({
   player, history, onClose, onUploadAvatar, leagueStats,
@@ -24,7 +27,7 @@ const PlayerProfileModal = ({
   const [showPowerHelp, setShowPowerHelp] = useState(false)
   const modalRef = useRef(null)
   const closeButtonRef = useRef(null)
-  
+
   // 响应式检测
   const isMobile = useIsMobile()
 
@@ -96,11 +99,10 @@ const PlayerProfileModal = ({
     >
       <div
         ref={modalRef}
-        className={`glass-panel w-full overflow-y-auto shadow-2xl relative bg-white/90 dark:bg-slate-900/90 scroll-touch ${
-          isMobile 
-            ? 'h-[95vh] rounded-t-2xl' 
-            : 'max-w-4xl max-h-[95vh] rounded-2xl'
-        }`}
+        className={`glass-panel w-full overflow-y-auto shadow-2xl relative bg-white/90 dark:bg-slate-900/90 scroll-touch ${isMobile
+          ? 'h-[95vh] rounded-t-2xl'
+          : 'max-w-4xl max-h-[95vh] rounded-2xl'
+          }`}
         onClick={e => e.stopPropagation()}
       >
         {/* 移动端拖拽指示器 */}
@@ -109,7 +111,7 @@ const PlayerProfileModal = ({
             <div className="w-10 h-1 bg-slate-300 dark:bg-slate-600 rounded-full" />
           </div>
         )}
-        
+
         {/* 顶部背景条 */}
         <div className={`bg-gradient-to-r from-emerald-600 to-teal-700 dark:from-emerald-900 dark:to-slate-900 relative overflow-hidden ${isMobile ? 'h-24' : 'h-32'}`}>
           <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/carbon-fibre.png')" }} />
@@ -128,11 +130,11 @@ const PlayerProfileModal = ({
           <div className={`flex gap-4 md:gap-6 ${isMobile ? 'flex-col items-center text-center' : 'flex-row items-start'}`}>
             {/* 头像 */}
             <div className="relative group cursor-pointer flex-shrink-0">
-              <Avatar 
-                name={player.name} 
-                src={player.avatar?.avatar || player.avatar} 
-                size={isMobile ? 'xl' : 'xxl'} 
-                className={`border-4 border-white dark:border-[#0b0e14] shadow-2xl`} 
+              <Avatar
+                name={player.name}
+                src={player.avatar?.avatar || player.avatar}
+                size={isMobile ? 'xl' : 'xxl'}
+                className={`border-4 border-white dark:border-[#0b0e14] shadow-2xl`}
               />
               <label className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-all backdrop-blur-sm">
                 <Icon name="camera" className="text-white w-8 h-8" />
@@ -145,14 +147,7 @@ const PlayerProfileModal = ({
             <div className={`flex-1 ${isMobile ? 'pt-2' : 'pt-0 md:mt-16'}`}>
               <div className={`flex flex-wrap items-center gap-3 mb-1 ${isMobile ? 'justify-center' : ''}`}>
                 <h2 id="player-profile-title" className={`font-black text-slate-800 dark:text-white tracking-tight ${isMobile ? 'text-2xl' : 'text-3xl'}`}>{player.name}</h2>
-                <button
-                  onClick={() => setShowPowerHelp(true)}
-                  className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg shadow-indigo-500/20 hover:from-indigo-600 hover:to-purple-600 transition-all cursor-pointer flex items-center gap-1 min-h-[32px] touch-feedback"
-                  aria-label="查看战力说明"
-                >
-                  战力 {Math.round(powerScore)}
-                  <Icon name="help-circle" className="w-3 h-3 opacity-70" />
-                </button>
+                <PowerBadge score={powerScore} onClick={() => setShowPowerHelp(true)} />
               </div>
               <PlayerBadges badges={badges} />
               <div className={`flex flex-wrap gap-2 text-sm text-slate-500 dark:text-slate-400 ${isMobile ? 'justify-center' : ''}`}>
@@ -174,26 +169,30 @@ const PlayerProfileModal = ({
             {/* 顶部数据统计 - 移动端隐藏，桌面端显示 */}
             {!isMobile && (
               <div className="hidden md:grid grid-cols-3 gap-x-6 gap-y-2 mt-20">
-              {radarStats.map(stat => {
-                // 维度颜色映射（和进度条一致，light模式加深）
-                const colorMap = {
-                  '统治': 'text-purple-600 dark:text-purple-400',
-                  '击败': 'text-rose-600 dark:text-rose-400',
-                  '效率': 'text-blue-600 dark:text-blue-400',
-                  '胜场': 'text-amber-600 dark:text-amber-400',
-                  '掠夺': 'text-emerald-600 dark:text-emerald-400',
-                  '稳定': 'text-cyan-600 dark:text-cyan-400',
-                  'MVP': 'text-indigo-600 dark:text-indigo-400'
-                }
-                // 标签直接使用
-                const shortLabel = stat.label
-                return (
-                  <div key={stat.label} className="text-center">
-                    <div className="text-xs text-slate-600 dark:text-slate-300 uppercase tracking-widest font-bold">{shortLabel}</div>
-                    <div className={`text-xl font-mono font-black ${colorMap[stat.label] || 'text-slate-700 dark:text-slate-200'}`}>{stat.raw}</div>
-                  </div>
-                )
-              })}
+                {radarStats.map(stat => {
+                  // 维度颜色映射（和进度条一致，light模式加深）
+                  const colorMap = {
+                    '统治': 'text-purple-600 dark:text-purple-400',
+                    '击败': 'text-rose-600 dark:text-rose-400',
+                    '效率': 'text-blue-600 dark:text-blue-400',
+                    '胜场': 'text-amber-600 dark:text-amber-400',
+                    '掠夺': 'text-emerald-600 dark:text-emerald-400',
+                    '稳定': 'text-cyan-600 dark:text-cyan-400',
+                    'MVP': 'text-indigo-600 dark:text-indigo-400'
+                  }
+                  // 标签直接使用
+                  const shortLabel = stat.label
+                  return (
+                    <div key={stat.label} className="text-center">
+                      <div className="text-xs text-slate-600 dark:text-slate-300 uppercase tracking-widest font-bold">{shortLabel}</div>
+                      <AnimatedNumber
+                        value={stat.raw}
+                        className={`text-xl font-mono font-black ${colorMap[stat.label] || 'text-slate-700 dark:text-slate-200'}`}
+                        duration={1000}
+                      />
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -217,7 +216,7 @@ const PlayerProfileModal = ({
 
             {/* 右侧：走势图 + 战绩表 */}
             <div className="space-y-6">
-              <CareerChart history={playerMatches} isDark={isDark} />
+              <CareerChart history={playerMatches} isDark={isDark} leagueStats={leagueStats} />
               <MatchHistoryTable matches={playerMatches} onNavigateToMatch={onNavigateToMatch} isMobile={isMobile} />
             </div>
           </div>

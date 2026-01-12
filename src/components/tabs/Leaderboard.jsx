@@ -2,13 +2,14 @@ import { memo, useState } from 'react';
 import Icon from '../common/Icon';
 import Avatar from '../common/Avatar';
 import Sparkline from '../../charts/Sparkline';
+import { getPowerTextColor, getPowerBgColor } from '../../lib/powerColor';
 
-const Leaderboard = ({ 
-    data, 
-    sortConfig, 
-    onSort, 
-    onPlayerClick, 
-    isSelectionMode, 
+const Leaderboard = ({
+    data,
+    sortConfig,
+    onSort,
+    onPlayerClick,
+    isSelectionMode,
     toggleSelectionMode,
     selectedPlayerNames,
     togglePlayerSelection,
@@ -26,7 +27,7 @@ const Leaderboard = ({
     const isSorted = (k) => sortConfig.key === k;
     const getSortIcon = (k) => {
         if (!isSorted(k)) return <Icon name="chevrons-up-down" className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />;
-        return sortConfig.direction === 'desc' 
+        return sortConfig.direction === 'desc'
             ? <Icon name="chevron-down" className="w-3 h-3" />
             : <Icon name="chevron-up" className="w-3 h-3" />;
     };
@@ -60,8 +61,8 @@ const Leaderboard = ({
 
     // 列高亮颜色配置 - 与数据颜色一致
     const columnHighlightConfig = {
-        powerScore: { text: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-50/50 dark:bg-purple-900/10' },
-        totalScore: { text: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50/50 dark:bg-emerald-900/10' },
+        powerScore: { text: 'text-slate-600 dark:text-slate-300', bg: 'bg-slate-50/50 dark:bg-slate-900/10' },
+        totalScore: { text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50/50 dark:bg-blue-900/10' },
         avgScore: { text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50/50 dark:bg-blue-900/10' },
         totalChips: { text: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-50/50 dark:bg-teal-900/10' },
         avgChips: { text: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-50/50 dark:bg-teal-900/10' },
@@ -100,10 +101,10 @@ const Leaderboard = ({
                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                     <div className="relative w-full sm:min-w-[160px] sm:w-auto">
                         <label htmlFor="season-select-leaderboard" className="sr-only">选择赛季</label>
-                        <select 
+                        <select
                             id="season-select-leaderboard"
-                            value={selectedSeason} 
-                            onChange={e => onSeasonChange(e.target.value)} 
+                            value={selectedSeason}
+                            onChange={e => onSeasonChange(e.target.value)}
                             aria-label="选择赛季筛选排行榜"
                             className="input-pro w-full pl-3 pr-8 py-2 rounded-lg text-sm bg-white dark:bg-slate-800/50 font-bold appearance-none cursor-pointer min-h-[44px]"
                         >
@@ -116,37 +117,37 @@ const Leaderboard = ({
                             })}
                         </select>
                         <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500" aria-hidden="true">
-                            <Icon name="chevron-down" className="w-4 h-4"/>
+                            <Icon name="chevron-down" className="w-4 h-4" />
                         </div>
                     </div>
-                    
+
                     <div className="relative w-full sm:w-56 group">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" aria-hidden="true">
-                            <Icon name="search" className="h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors"/>
+                            <Icon name="search" className="h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                         </div>
                         <label htmlFor="player-search" className="sr-only">搜索玩家</label>
-                        <input 
+                        <input
                             id="player-search"
-                            type="text" 
-                            placeholder="搜索玩家..." 
-                            value={searchTerm} 
-                            onChange={(e) => onSearchChange(e.target.value)} 
+                            type="text"
+                            placeholder="搜索玩家..."
+                            value={searchTerm}
+                            onChange={(e) => onSearchChange(e.target.value)}
                             aria-label="搜索玩家名称"
-                            className="input-pro w-full pl-10 pr-4 py-2 rounded-lg text-sm bg-white dark:bg-slate-800/50 min-h-[44px]" 
+                            className="input-pro w-full pl-10 pr-4 py-2 rounded-lg text-sm bg-white dark:bg-slate-800/50 min-h-[44px]"
                         />
                     </div>
                 </div>
 
-                <button 
-                    onClick={toggleSelectionMode} 
+                <button
+                    onClick={toggleSelectionMode}
                     aria-label={isSelectionMode ? '退出多选模式' : '进入多选模式'}
                     aria-pressed={isSelectionMode}
-                    className={`p-2 rounded-lg border transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-feedback ${isSelectionMode 
-                        ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-500 text-indigo-600 dark:text-indigo-400' 
+                    className={`p-2 rounded-lg border transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-feedback ${isSelectionMode
+                        ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-500 text-indigo-600 dark:text-indigo-400'
                         : 'bg-white dark:bg-transparent border-slate-200 dark:border-slate-700 text-slate-400 hover:border-slate-400'}`}
                     title="多选模式"
                 >
-                    <Icon name="list-checks" className="w-4 h-4" aria-hidden="true"/>
+                    <Icon name="list-checks" className="w-4 h-4" aria-hidden="true" />
                 </button>
             </div>
 
@@ -155,16 +156,16 @@ const Leaderboard = ({
                 <div className="bg-indigo-50 dark:bg-indigo-900/20 px-4 py-2 flex justify-between items-center text-xs text-indigo-600 dark:text-indigo-300 border-b border-indigo-100 dark:border-indigo-500/20" role="toolbar" aria-label="多选模式工具栏">
                     <span className="font-bold" aria-live="polite">已选: {selectedPlayerNames.size}</span>
                     <div className="flex gap-3">
-                        <button 
-                            onClick={() => setShowSelectedOnly(!showSelectedOnly)} 
+                        <button
+                            onClick={() => setShowSelectedOnly(!showSelectedOnly)}
                             aria-pressed={showSelectedOnly}
                             aria-label={showSelectedOnly ? '显示全部玩家' : '仅显示已选玩家'}
                             className="hover:underline"
                         >
                             {showSelectedOnly ? '显示全部' : '仅看已选'}
                         </button>
-                        <button 
-                            onClick={onClearSelection} 
+                        <button
+                            onClick={onClearSelection}
                             aria-label="清空所有选择"
                             className="hover:underline"
                         >
@@ -177,22 +178,22 @@ const Leaderboard = ({
             {/* 移动端卡片视图 - 优化触摸目标 */}
             <div className="block md:hidden bg-slate-50 dark:bg-[#0b0e14]">
                 {filteredData.map((p, idx) => (
-                    <div 
-                        key={p.name} 
-                        onClick={() => isSelectionMode ? togglePlayerSelection(p.name) : onPlayerClick(p)} 
+                    <div
+                        key={p.name}
+                        onClick={() => isSelectionMode ? togglePlayerSelection(p.name) : onPlayerClick(p)}
                         className={`p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-4 transition-colors touch-feedback min-h-[72px] ${selectedPlayerNames.has(p.name) ? 'bg-indigo-50 dark:bg-indigo-900/10' : ''}`}
                     >
                         <div className="flex flex-col items-center gap-1 min-w-[3rem]">
-                            {isSelectionMode ? 
-                                <input type="checkbox" checked={selectedPlayerNames.has(p.name)} readOnly className="accent-indigo-500 w-6 h-6" /> : 
-                                <span className={`inline-block w-7 h-7 leading-7 text-center rounded text-xs font-bold ${idx===0?'rank-badge-1':idx===1?'rank-badge-2':idx===2?'rank-badge-3':'text-slate-400 bg-slate-200 dark:bg-slate-700'}`}>{idx+1}</span>
+                            {isSelectionMode ?
+                                <input type="checkbox" checked={selectedPlayerNames.has(p.name)} readOnly className="accent-indigo-500 w-6 h-6" /> :
+                                <span className={`inline-block w-7 h-7 leading-7 text-center rounded text-xs font-bold ${idx === 0 ? 'rank-badge-1' : idx === 1 ? 'rank-badge-2' : idx === 2 ? 'rank-badge-3' : 'text-slate-400 bg-slate-200 dark:bg-slate-700'}`}>{idx + 1}</span>
                             }
                             <Avatar name={p.name} src={p.avatar?.avatar || p.avatar} size="md" bordered={false} className="shadow-sm" />
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-start mb-1">
                                 <span className="font-bold text-slate-800 dark:text-white truncate">{p.name}</span>
-                                <span className="font-mono font-bold text-purple-600 dark:text-purple-400 text-lg tabular-nums">{Math.round(p.powerScore)}</span>
+                                <span className={`font-mono font-bold text-lg tabular-nums ${getPowerTextColor(p.powerScore)}`}>{Math.round(p.powerScore)}</span>
                             </div>
                             <div className="grid grid-cols-3 gap-2 text-xs">
                                 <div>
@@ -201,7 +202,7 @@ const Leaderboard = ({
                                 </div>
                                 <div>
                                     <div className="text-[10px] text-slate-400 uppercase">总筹码</div>
-                                    <div className={`font-bold font-mono tabular-nums ${p.totalChips>=0?'text-teal-500':'text-slate-400'}`}>{p.totalChips>0?'+':''}{p.totalChips}</div>
+                                    <div className={`font-bold font-mono tabular-nums ${p.totalChips >= 0 ? 'text-teal-500' : 'text-slate-400'}`}>{p.totalChips > 0 ? '+' : ''}{p.totalChips}</div>
                                 </div>
                                 <div>
                                     <div className="text-[10px] text-slate-400 uppercase">吃鸡</div>
@@ -261,11 +262,11 @@ const Leaderboard = ({
                                     )}
                                 </span>
                             </th>
-                            <th className={sortableHeaderClass('totalScore', 'center')} onClick={() => onSort('totalScore')}>
-                                <span className="inline-flex items-center gap-1 justify-center">总积分 {getSortIcon('totalScore')}</span>
-                            </th>
                             <th className={sortableHeaderClass('avgScore', 'center')} onClick={() => onSort('avgScore')}>
                                 <span className="inline-flex items-center gap-1 justify-center">场均得分 {getSortIcon('avgScore')}</span>
+                            </th>
+                            <th className={sortableHeaderClass('totalScore', 'center')} onClick={() => onSort('totalScore')}>
+                                <span className="inline-flex items-center gap-1 justify-center">总积分 {getSortIcon('totalScore')}</span>
                             </th>
                             <th className="px-3 py-3 w-20 text-center border-b border-slate-200 dark:border-slate-800">趋势</th>
                             <th className={sortableHeaderClass('totalChips', 'center')} onClick={() => onSort('totalChips')}>
@@ -290,9 +291,9 @@ const Leaderboard = ({
                     </thead>
                     <tbody className="text-base">
                         {filteredData.map((p, idx) => (
-                            <tr 
-                                key={p.name} 
-                                onClick={() => isSelectionMode ? togglePlayerSelection(p.name) : onPlayerClick(p)} 
+                            <tr
+                                key={p.name}
+                                onClick={() => isSelectionMode ? togglePlayerSelection(p.name) : onPlayerClick(p)}
                                 className={`
                                     border-b border-slate-100 dark:border-slate-800/50 
                                     hover:bg-slate-50 dark:hover:bg-slate-800/30 
@@ -302,11 +303,11 @@ const Leaderboard = ({
                                 `}
                             >
                                 <td className="px-4 py-4 text-center text-slate-400">
-                                    {isSelectionMode 
-                                        ? <input type="checkbox" checked={selectedPlayerNames.has(p.name)} onChange={()=>{}} className="accent-indigo-500" /> 
-                                        : (idx < 3 
+                                    {isSelectionMode
+                                        ? <input type="checkbox" checked={selectedPlayerNames.has(p.name)} onChange={() => { }} className="accent-indigo-500" />
+                                        : (idx < 3
                                             ? <MedalIcon rank={idx} />
-                                            : <span className="text-slate-400">{idx+1}</span>
+                                            : <span className="text-slate-400">{idx + 1}</span>
                                         )
                                     }
                                 </td>
@@ -316,19 +317,19 @@ const Leaderboard = ({
                                         <span className={`font-semibold text-slate-700 dark:text-white truncate max-w-[120px] ${idx < 3 ? 'text-base' : ''}`}>{p.name}</span>
                                     </div>
                                 </td>
-                                <td className={`px-5 py-4 text-center ${getCellHighlightBg('powerScore')}`}>
-                                    <span className={`font-black text-purple-600 dark:text-purple-400 ${idx < 3 ? 'text-xl' : 'text-lg'}`}>
+                                <td className={`px-5 py-4 text-center ${getPowerBgColor(p.powerScore)}`}>
+                                    <span className={`font-black ${getPowerTextColor(p.powerScore)} ${idx < 3 ? 'text-xl' : 'text-lg'}`}>
                                         {Math.round(p.powerScore)}
                                     </span>
-                                </td>
-                                <td className={`pl-5 pr-10 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400 ${getCellHighlightBg('totalScore')}`}>
-                                    {p.totalScore}
                                 </td>
                                 <td className={`px-5 py-4 text-center font-bold text-blue-600 dark:text-blue-400 ${getCellHighlightBg('avgScore')}`}>
                                     {p.avgScore}
                                 </td>
+                                <td className={`pl-5 pr-10 py-4 text-right font-bold text-blue-600 dark:text-blue-400 ${getCellHighlightBg('totalScore')}`}>
+                                    {p.totalScore}
+                                </td>
                                 <td className="px-3 py-4 w-20">
-                                    <Sparkline data={p.recentTrend} color={p.recentTrend[p.recentTrend.length-1] >= 10 ? '#059669' : '#94a3b8'} />
+                                    <Sparkline data={p.powerTrend} />
                                 </td>
                                 <td className={`pl-5 pr-10 py-4 text-right ${p.totalChips >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-slate-400 dark:text-slate-500'} ${getCellHighlightBg('totalChips')}`}>
                                     {p.totalChips > 0 ? '+' : ''}{p.totalChips}
@@ -340,19 +341,19 @@ const Leaderboard = ({
                                     {p.goldContent !== undefined && p.goldContent !== null ? p.goldContent : <span className="text-slate-300 dark:text-slate-600">-</span>}
                                 </td>
                                 <td className={`px-5 py-4 text-center ${getCellHighlightBg('wins')}`}>
-                                    {p.wins > 0 
+                                    {p.wins > 0
                                         ? <span className="text-yellow-600 dark:text-yellow-400 font-bold">{p.wins}</span>
                                         : <span className="text-slate-300 dark:text-slate-600">-</span>
                                     }
                                 </td>
                                 <td className={`px-5 py-4 text-center ${getCellHighlightBg('votedMvpCount')}`}>
-                                    {p.votedMvpCount > 0 
+                                    {p.votedMvpCount > 0
                                         ? <span className="text-indigo-600 dark:text-indigo-400 font-bold">{p.votedMvpCount}</span>
                                         : <span className="text-slate-300 dark:text-slate-600">-</span>
                                     }
                                 </td>
                                 <td className={`px-5 py-4 text-center ${getCellHighlightBg('luckyCount')}`}>
-                                    {p.luckyCount > 0 
+                                    {p.luckyCount > 0
                                         ? <span className="text-pink-600 dark:text-pink-400 font-bold">{p.luckyCount}</span>
                                         : <span className="text-slate-300 dark:text-slate-600">-</span>
                                     }
