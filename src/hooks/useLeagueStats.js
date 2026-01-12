@@ -86,7 +86,8 @@ function useLeagueStats(matchHistory) {
             chipWins: 0,    // 筹码为正的场次
             wins: 0,        // 第1名次数（用于统治指数）
             mvps: 0,        // MVP次数
-            ranks: []       // 排名数组（用于计算稳定性）
+            ranks: [],      // 排名数组
+            chipsList: []   // 每场筹码数组（用于计算筹码标准差）
           };
         }
 
@@ -123,6 +124,8 @@ function useLeagueStats(matchHistory) {
         
         // 收集排名（用于计算稳定性）
         player.ranks.push(res.rank);
+        // 收集每场筹码（用于计算筹码标准差）
+        player.chipsList.push(parseFloat(res.chips) || 0);
       });
     });
 
@@ -154,6 +157,20 @@ function useLeagueStats(matchHistory) {
     // 计算赛季平均场均筹码（用于掠夺指数动态先验）
     const totalChips = Object.values(tempStats).reduce((sum, p) => sum + p.chips, 0);
     const leagueAvgChips = totalGamesAll > 0 ? totalChips / totalGamesAll : 0;
+
+    // 计算联盟平均筹码标准差（用于稳定性贝叶斯修正）
+    let totalChipStdDev = 0;
+    let playerCountForStdDev = 0;
+    Object.values(tempStats).forEach(p => {
+      if (p.games >= 2) {  // 至少2场才能计算标准差
+        const avgChip = p.chips / p.games;
+        const variance = p.chipsList.reduce((sum, c) => sum + Math.pow(c - avgChip, 2), 0) / p.games;
+        const stdDev = Math.sqrt(variance);
+        totalChipStdDev += stdDev;
+        playerCountForStdDev += 1;
+      }
+    });
+    const leagueAvgChipStdDev = playerCountForStdDev > 0 ? totalChipStdDev / playerCountForStdDev : 800;
 
     // 贝叶斯修正后MVP率的极值
     let maxAdjustedMvpRate = 0;
@@ -266,11 +283,19 @@ function useLeagueStats(matchHistory) {
         minAdjustedMvpRate = adjustedMvpRate;
       }
 
-      // 计算稳定性得分
-      const avgRank = p.ranks.reduce((a, b) => a + b, 0) / p.ranks.length;
-      const variance = p.ranks.reduce((a, b) => a + Math.pow(b - avgRank, 2), 0) / p.ranks.length;
-      const stdDev = Math.sqrt(variance);
-      const stabilityScore = Math.max(0, Math.min(100, (1 - stdDev / 10) * 100));
+      // 计算稳定性得分（基于筹码标准差，贝叶斯修正）
+      // 筹码标准差越小 = 越稳定
+      let rawChipStdDev = 0;
+      if (p.games >= 2) {
+        const avgChip = p.chips / p.games;
+        const variance = p.chipsList.reduce((sum, c) => sum + Math.pow(c - avgChip, 2), 0) / p.games;
+        rawChipStdDev = Math.sqrt(variance);
+      }
+      // 贝叶斯修正：场次少的人向联盟平均靠拢
+      const adjustedChipStdDev = (rawChipStdDev * p.games + leagueAvgChipStdDev * priorGames) / (p.games + priorGames);
+      // 稳定性得分：标准差越小得分越高（反向归一化）
+      // 使用 1000 作为标准差上限参考值
+      const stabilityScore = Math.max(0, Math.min(100, (1 - adjustedChipStdDev / 1500) * 100));
 
       // 计算掠夺的贝叶斯修正值（使用赛季平均场均筹码作为先验）
       const adjustedPlunder = (avgChips * p.games + leagueAvgChips * priorGames) / (p.games + priorGames);
@@ -379,6 +404,8 @@ function useLeagueStats(matchHistory) {
       leagueAvgMvpRate,
       // 赛季平均场均筹码（用于掠夺动态先验）
       leagueAvgChips,
+      // 联盟平均筹码标准差（用于稳定性贝叶斯修正）
+      leagueAvgChipStdDev,
       // 赛季总场次
       totalMatches: matchHistory.length,
       // 贝叶斯修正后打折的极值（用于归一化）

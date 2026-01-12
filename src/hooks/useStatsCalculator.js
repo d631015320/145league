@@ -88,7 +88,8 @@ function useStatsCalculator(matchHistory, selectedSeason, leagueStats, playerPro
             ranks: [],
             sumPlayers: 0,
             chipWins: 0,
-            sumBeatRate: 0
+            sumBeatRate: 0,
+            chipsList: []  // 每场筹码数组（用于计算筹码标准差）
           };
         }
 
@@ -96,6 +97,7 @@ function useStatsCalculator(matchHistory, selectedSeason, leagueStats, playerPro
         p.gamesPlayed += 1;
         p.totalScore += r.score;
         p.totalChips += parseFloat(r.chips);
+        p.chipsList.push(parseFloat(r.chips) || 0);  // 收集每场筹码
         if (r.rank === 1) p.wins += 1;
         p.recentScores.push({ date: match.date, score: r.score, rank: r.rank });
 
@@ -164,7 +166,8 @@ function useStatsCalculator(matchHistory, selectedSeason, leagueStats, playerPro
         chipWins: p.chipWins,
         mvpCount: p.votedMvpCount,
         sumPlayers: p.sumPlayers,
-        ranks: p.ranks
+        ranks: p.ranks,
+        chipsList: p.chipsList  // 传入每场筹码数组
       }, leagueStats, activeCoeff, currentSeasonTotal)
 
       p.activeCoeff = activeCoeff  // 保存系数便于调试
@@ -232,11 +235,18 @@ function useStatsCalculator(matchHistory, selectedSeason, leagueStats, playerPro
       const leagueAvgChips = leagueStats?.leagueAvgChips || 0
       const adjPlunder = (avgChips * p.gamesPlayed + leagueAvgChips * priorGames) / (p.gamesPlayed + priorGames)
 
-      // 稳定性计算（不做贝叶斯修正）
-      const avgRank = p.ranks.reduce((a, b) => a + b, 0) / p.ranks.length || 0
-      const variance = p.ranks.reduce((a, b) => a + Math.pow(b - avgRank, 2), 0) / p.ranks.length || 0
-      const stdDev = Math.sqrt(variance)
-      const stability = Math.max(0, Math.min(100, (1 - stdDev / 10) * 100))
+      // 稳定性计算（基于筹码标准差，贝叶斯修正）
+      let rawChipStdDev = 0
+      if (p.gamesPlayed >= 2) {
+        const avgChipForStd = p.totalChips / p.gamesPlayed
+        const variance = p.chipsList.reduce((sum, c) => sum + Math.pow(c - avgChipForStd, 2), 0) / p.gamesPlayed
+        rawChipStdDev = Math.sqrt(variance)
+      }
+      // 贝叶斯修正：场次少的人向联盟平均靠拢
+      const leagueAvgChipStdDev = leagueStats?.leagueAvgChipStdDev || 800
+      const adjustedChipStdDev = (rawChipStdDev * p.gamesPlayed + leagueAvgChipStdDev * priorGames) / (p.gamesPlayed + priorGames)
+      // 稳定性得分：标准差越小得分越高（反向归一化）
+      const stability = Math.max(0, Math.min(100, (1 - adjustedChipStdDev / 1500) * 100))
 
       return {
         ...p,

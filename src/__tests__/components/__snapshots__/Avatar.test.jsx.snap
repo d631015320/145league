@@ -22,6 +22,8 @@ exports[`Avatar > matches snapshot with image 1`] = `
     <img
       alt="Test"
       class="w-full h-full object-cover"
+      decoding="async"
+      loading="lazy"
       src="https://example.com/test.jpg"
     />
   </div>

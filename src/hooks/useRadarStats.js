@@ -133,7 +133,8 @@ export function calculatePowerScore(playerData, leagueStats, activeCoeff = 1.0, 
     chipWins,
     mvpCount,
     sumPlayers,
-    ranks
+    ranks,
+    chipsList = []  // 每场筹码数组（用于计算筹码标准差）
   } = playerData
 
   if (gamesPlayed < 1) return 0
@@ -148,11 +149,18 @@ export function calculatePowerScore(playerData, leagueStats, activeCoeff = 1.0, 
     return Math.max(0, Math.min(100, ((value - min) / range) * 100))
   }
 
-  // 1. 稳定性原始值
-  const avgRank = ranks.reduce((a, b) => a + b, 0) / ranks.length
-  const variance = ranks.reduce((a, b) => a + Math.pow(b - avgRank, 2), 0) / ranks.length
-  const stdDev = Math.sqrt(variance)
-  const rawStability = Math.max(0, Math.min(100, (1 - stdDev / 10) * 100))
+  // 1. 稳定性原始值（基于筹码标准差，贝叶斯修正）
+  let rawChipStdDev = 0
+  if (gamesPlayed >= 2 && chipsList.length >= 2) {
+    const avgChipForStd = chipsList.reduce((a, b) => a + b, 0) / chipsList.length
+    const variance = chipsList.reduce((a, b) => a + Math.pow(b - avgChipForStd, 2), 0) / chipsList.length
+    rawChipStdDev = Math.sqrt(variance)
+  }
+  // 贝叶斯修正：场次少的人向联盟平均靠拢
+  const leagueAvgChipStdDev = leagueStats?.leagueAvgChipStdDev || 800
+  const adjustedChipStdDev = (rawChipStdDev * gamesPlayed + leagueAvgChipStdDev * priorGames) / (gamesPlayed + priorGames)
+  // 稳定性得分：标准差越小得分越高（反向归一化）
+  const rawStability = Math.max(0, Math.min(100, (1 - adjustedChipStdDev / 1500) * 100))
 
   // 2. 效率原始值（贝叶斯修正后的场均得分）
   const avgPlayers = sumPlayers / gamesPlayed
@@ -262,13 +270,21 @@ function useRadarStats(leagueStats, seasonTotalGames = 10) {
     // 动态先验场次：√举办场次 × 2
     const priorGames = calculatePriorGames(seasonTotalGames)
 
-    // 1. 稳定性 (Stability) - 基于排名标准差，值域 0-100
-    const ranks = targetMatches.map(m => m.result.rank)
-    const avgRank = ranks.reduce((a, b) => a + b, 0) / ranks.length
-    const variance = ranks.reduce((a, b) => a + Math.pow(b - avgRank, 2), 0) / ranks.length
-    const stdDev = Math.sqrt(variance)
-    // 标准差 0 → 100分，标准差 10 → 0分
-    const stabilityScore = Math.max(0, Math.min(100, (1 - stdDev / 10) * 100))
+    // 1. 稳定性 (Stability) - 基于筹码标准差，贝叶斯修正，值域 0-100
+    // 筹码标准差越小 = 越稳定
+    const chipsList = targetMatches.map(m => parseFloat(m.result?.chips) || 0)
+    const avgChipForStd = chipsList.reduce((a, b) => a + b, 0) / chipsList.length
+    let rawChipStdDev = 0
+    if (targetTotalGames >= 2) {
+      const variance = chipsList.reduce((a, b) => a + Math.pow(b - avgChipForStd, 2), 0) / chipsList.length
+      rawChipStdDev = Math.sqrt(variance)
+    }
+    // 贝叶斯修正：场次少的人向联盟平均靠拢
+    const leagueAvgChipStdDev = leagueStats?.leagueAvgChipStdDev || 800
+    const adjustedChipStdDev = (rawChipStdDev * targetTotalGames + leagueAvgChipStdDev * priorGames) / (targetTotalGames + priorGames)
+    // 稳定性得分：标准差越小得分越高（反向归一化）
+    // 使用 1500 作为标准差上限参考值
+    const stabilityScore = Math.max(0, Math.min(100, (1 - adjustedChipStdDev / 1500) * 100))
 
     // 2. 效率 (Efficiency) - 贝叶斯修正后的场均得分，相对排名归一化，值域 0-100
     const totalScore = targetMatches.reduce((a, b) => a + b.result.score, 0)
@@ -412,7 +428,7 @@ function useRadarStats(leagueStats, seasonTotalGames = 10) {
         {
           label: '稳定',
           value: stabilityScore,
-          raw: `σ=${stdDev.toFixed(1)}`,
+          raw: `σ=${Math.round(adjustedChipStdDev)}`,
           description: RADAR_LABELS[6].description,
           zh: RADAR_LABELS[6].zh
         }
@@ -449,12 +465,19 @@ export function usePlayerRadarStats(player, playerMatches, totalGames, leagueSta
 
     // ========== 计算各维度原始值 ==========
     
-    // 1. 稳定性 - 基于排名标准差
-    const ranks = playerMatches.map(m => m.result.rank)
-    const avgRank = ranks.reduce((a, b) => a + b, 0) / ranks.length
-    const variance = ranks.reduce((a, b) => a + Math.pow(b - avgRank, 2), 0) / ranks.length
-    const stdDev = Math.sqrt(variance)
-    const rawStability = Math.max(0, Math.min(100, (1 - stdDev / 10) * 100))
+    // 1. 稳定性 - 基于筹码标准差，贝叶斯修正
+    const chipsList = playerMatches.map(m => parseFloat(m.result?.chips) || 0)
+    const avgChipForStd = chipsList.reduce((a, b) => a + b, 0) / chipsList.length
+    let rawChipStdDev = 0
+    if (totalGames >= 2) {
+      const variance = chipsList.reduce((a, b) => a + Math.pow(b - avgChipForStd, 2), 0) / chipsList.length
+      rawChipStdDev = Math.sqrt(variance)
+    }
+    // 贝叶斯修正：场次少的人向联盟平均靠拢
+    const leagueAvgChipStdDev = leagueStats?.leagueAvgChipStdDev || 800
+    const adjustedChipStdDev = (rawChipStdDev * totalGames + leagueAvgChipStdDev * priorGames) / (totalGames + priorGames)
+    // 稳定性得分：标准差越小得分越高（反向归一化）
+    const rawStability = Math.max(0, Math.min(100, (1 - adjustedChipStdDev / 1500) * 100))
 
     // 2. 效率 - 贝叶斯修正后的场均得分
     const totalScore = playerMatches.reduce((a, b) => a + b.result.score, 0)
@@ -608,7 +631,7 @@ export function usePlayerRadarStats(player, playerMatches, totalGames, leagueSta
       {
         label: '稳定',
         value: stabilityScore,
-        raw: `σ=${stdDev.toFixed(1)}`,
+        raw: `σ=${Math.round(adjustedChipStdDev)}`,
         description: RADAR_LABELS[6].description,
         zh: RADAR_LABELS[6].zh
       }
