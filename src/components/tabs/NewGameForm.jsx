@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Icon from '../common/Icon';
 import { BASE_SCORES, CHIP_EXCHANGE_RATE } from '../../lib/utils';
+import { DEFAULT_QUICK_AMOUNTS } from '../../constants';
 
-const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, onSave, onCancelEdit }) => {
+const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, onSave, onCancelEdit, quickAmounts }) => {
     // 内部状态
     const [gameDate, setGameDate] = useState(new Date().toISOString().slice(0, 10));
     const [roster, setRoster] = useState([]);
@@ -24,6 +25,12 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
     // 🔒 安全锁
     const [hasLoaded, setHasLoaded] = useState(false);
 
+    // 📢 草稿恢复提示
+    const [draftToast, setDraftToast] = useState(null);
+
+    // ⏱️ 防抖保存定时器
+    const saveTimerRef = useRef(null);
+
     // 点击外部关闭下拉菜单
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -41,48 +48,87 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
     // ...
 
     // ==========================================
-    // 💾 功能 1: 自动保存/恢复草稿 (请确保保留了原代码的这部分)
+    // 💾 功能 1: 自动保存/恢复草稿
     // ==========================================
-    useEffect(() => {
-        if (editingMatch) {
-            setGameDate(editingMatch.date);
-            setVotedMvp(editingMatch.votedMvp || '');
-            setLuckyPlayer(editingMatch.luckyPlayer || '');
-            if (editingMatch.roster) {
-                setRoster(editingMatch.roster);
-                setTransactions(editingMatch.transactions || []);
-                setFinalStacks(editingMatch.finalStacks || {});
-            } else {
-                setRoster(editingMatch.results.map(r => r.name));
-                setTransactions([]);
-                const stacks = {};
-                editingMatch.results.forEach(r => stacks[r.name] = r.chips);
-                setFinalStacks(stacks);
-                alert("注意：正在编辑旧版本数据，流水已重置，请手动补全。");
-            }
-            setHasLoaded(true);
-        } else {
-            const savedDraft = localStorage.getItem('match_draft');
-            if (savedDraft) {
-                try {
-                    const draft = JSON.parse(savedDraft);
-                    if (draft.gameDate) setGameDate(draft.gameDate);
-                    if (draft.roster && draft.roster.length > 0) setRoster(draft.roster);
-                    if (draft.transactions) setTransactions(draft.transactions);
-                    if (draft.finalStacks) setFinalStacks(draft.finalStacks);
-                    if (draft.votedMvp) setVotedMvp(draft.votedMvp);
-                    if (draft.luckyPlayer) setLuckyPlayer(draft.luckyPlayer);
-                } catch (e) { console.error(e); }
-            }
-            setHasLoaded(true);
-        }
-    }, [editingMatch]);
 
     useEffect(() => {
-        if (!hasLoaded || editingMatch) return;
-        const draftData = { gameDate, roster, transactions, finalStacks, votedMvp, luckyPlayer };
-        localStorage.setItem('match_draft', JSON.stringify(draftData));
-    }, [gameDate, roster, transactions, finalStacks, votedMvp, luckyPlayer, hasLoaded, editingMatch]);
+        if (editingMatch) {
+            // 编辑模式：加载比赛数据
+            setGameDate(editingMatch.date)
+            setVotedMvp(editingMatch.votedMvp || '')
+            setLuckyPlayer(editingMatch.luckyPlayer || '')
+            if (editingMatch.roster) {
+                setRoster(editingMatch.roster)
+                setTransactions(editingMatch.transactions || [])
+                setFinalStacks(editingMatch.finalStacks || {})
+            } else {
+                setRoster(editingMatch.results.map(r => r.name))
+                setTransactions([])
+                const stacks = {}
+                editingMatch.results.forEach(r => stacks[r.name] = r.chips)
+                setFinalStacks(stacks)
+                alert("注意：正在编辑旧版本数据，流水已重置，请手动补全。")
+            }
+        } else {
+            // 新建模式：从草稿恢复
+            const savedDraft = localStorage.getItem('match_draft')
+            if (savedDraft) {
+                try {
+                    const draft = JSON.parse(savedDraft)
+                    
+                    // 检查草稿是否过期（24小时 = 86400000ms）
+                    const DRAFT_EXPIRY_MS = 24 * 60 * 60 * 1000
+                    if (draft.savedAt && Date.now() - draft.savedAt > DRAFT_EXPIRY_MS) {
+                        // 草稿已过期，清除
+                        localStorage.removeItem('match_draft')
+                    } else {
+                        // 草稿有效，恢复数据
+                        const data = draft.data || draft // 兼容旧格式
+                        if (data.gameDate) setGameDate(data.gameDate)
+                        if (data.roster && data.roster.length > 0) setRoster(data.roster)
+                        if (data.transactions) setTransactions(data.transactions)
+                        if (data.finalStacks) setFinalStacks(data.finalStacks)
+                        if (data.votedMvp) setVotedMvp(data.votedMvp)
+                        if (data.luckyPlayer) setLuckyPlayer(data.luckyPlayer)
+                        
+                        // 显示恢复提示
+                        const savedTime = draft.savedAt 
+                            ? new Date(draft.savedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                            : '未知时间'
+                        setDraftToast(`已恢复 ${savedTime} 的草稿`)
+                        setTimeout(() => setDraftToast(null), 3000)
+                    }
+                } catch (e) { /* 忽略解析错误 */ }
+            }
+        }
+        setHasLoaded(true)
+    }, [editingMatch])
+
+    // 自动保存草稿（仅在新建模式下，带防抖）
+    useEffect(() => {
+        if (!hasLoaded || editingMatch) return
+        
+        // 清除之前的定时器
+        if (saveTimerRef.current) {
+            clearTimeout(saveTimerRef.current)
+        }
+        
+        // 500ms 防抖保存
+        saveTimerRef.current = setTimeout(() => {
+            const draftData = {
+                savedAt: Date.now(),
+                data: { gameDate, roster, transactions, finalStacks, votedMvp, luckyPlayer }
+            }
+            localStorage.setItem('match_draft', JSON.stringify(draftData))
+        }, 500)
+        
+        // 清理函数
+        return () => {
+            if (saveTimerRef.current) {
+                clearTimeout(saveTimerRef.current)
+            }
+        }
+    }, [gameDate, roster, transactions, finalStacks, votedMvp, luckyPlayer, hasLoaded, editingMatch])
 
 
     // ==========================================
@@ -159,6 +205,46 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
 
     const deleteTransaction = (id) => setTransactions(transactions.filter(t => t.id !== id));
 
+    // ==========================================
+    // 🗑️ 功能 3: 清空表单
+    // ==========================================
+
+    /**
+     * 检查表单是否有数据
+     * @returns {boolean} 表单是否包含任何已输入的数据
+     */
+    const hasFormData = () => {
+        return roster.length > 0 ||
+            transactions.length > 0 ||
+            Object.keys(finalStacks).length > 0 ||
+            votedMvp !== '' ||
+            luckyPlayer !== ''
+    }
+
+    /**
+     * 清空表单所有数据
+     * 重置所有状态到初始值并清除本地草稿
+     */
+    const handleClearForm = () => {
+        // 如果有数据，先确认
+        if (hasFormData()) {
+            if (!confirm('确定要清空所有已录入的数据吗？')) {
+                return
+            }
+        }
+
+        // 重置所有状态
+        setGameDate(new Date().toISOString().slice(0, 10))
+        setRoster([])
+        setTransactions([])
+        setFinalStacks({})
+        setVotedMvp('')
+        setLuckyPlayer('')
+
+        // 清除草稿缓存
+        localStorage.removeItem('match_draft')
+    }
+
     const updateFinalStack = (name, value) => {
         setFinalStacks(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
     };
@@ -212,9 +298,21 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
 
     return (
         <div className="glass-panel p-4 sm:p-6 rounded-2xl max-w-4xl mx-auto shadow-lg border border-slate-200 dark:border-slate-700/50">
+            {/* 草稿恢复提示 Toast */}
+            {draftToast && (
+                <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium flex items-center gap-2 animate-slide-up">
+                    <Icon name="check-circle" className="w-4 h-4" />
+                    {draftToast}
+                </div>
+            )}
+            
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><Icon name="edit-3" className="w-5 h-5 text-emerald-500" /> 比赛管理台</h2>
-                {editingMatch && <button onClick={onCancelEdit} className="text-xs text-red-500 min-h-[36px] px-3 touch-feedback">取消编辑</button>}
+                {editingMatch ? (
+                    <button onClick={onCancelEdit} className="text-xs text-red-500 min-h-[36px] px-3 touch-feedback">取消编辑</button>
+                ) : (
+                    <button onClick={handleClearForm} className="text-xs text-red-500 min-h-[36px] px-3 touch-feedback">清空表单</button>
+                )}
             </div>
 
             <div className="space-y-6">
@@ -357,6 +455,28 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
                                             <Icon name="check" className="w-5 h-5" aria-hidden="true" />
                                         </button>
                                     </div>
+                                    {/* ⚡ 快捷筹码按钮 (Quick Chips) */}
+                                    <div className="flex gap-2 mt-2 overflow-x-auto pb-1 scroll-touch pt-2">
+                                        {(() => {
+                                            const amounts = quickAmounts?.list || DEFAULT_QUICK_AMOUNTS;
+                                            const hotAmount = quickAmounts?.hot;
+
+                                            return amounts.map(amount => (
+                                                <button
+                                                    key={amount}
+                                                    onClick={() => setBuyInAmount(amount.toString())}
+                                                    className="relative px-3 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40 rounded-full border border-emerald-100 dark:border-emerald-900/50 transition-colors whitespace-nowrap group"
+                                                >
+                                                    +{amount}
+                                                    {amount === hotAmount && (
+                                                        <span className="absolute -top-1.5 -right-1 px-1 h-3.5 bg-rose-500 text-white text-[9px] flex items-center justify-center rounded-full scale-90 shadow-sm animate-pulse-slow font-normal z-10">
+                                                            HOT
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            ));
+                                        })()}
+                                    </div>
                                 </div>
                                 <div className="max-h-64 overflow-y-auto pr-2 scroll-touch relative" role="list" aria-label="交易记录列表">
                                     {transactions.length > 0 && (
@@ -369,15 +489,30 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
                                                 <div className="absolute -left-[21px] top-3 w-3 h-3 rounded-full bg-emerald-100 dark:bg-emerald-900 border-2 border-white dark:border-slate-900 z-10"></div>
 
                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="text-[10px] text-slate-400 font-mono bg-slate-50 dark:bg-slate-800 px-1 rounded">{t.time}</span>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="font-bold text-slate-700 dark:text-slate-200">{t.buyer}</span>
-                                                        <span className="text-slate-400 transform scale-75">◀</span>
-                                                        <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-900/20 px-1.5 rounded">{t.amount}</span>
-                                                        <span className="text-slate-400 transform scale-75">◀</span>
-                                                        <span className={`text-[10px] px-1.5 rounded-full ${t.seller === 'Official' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}>{t.seller === 'Official' ? '官方' : t.seller}</span>
+                                                    {/* 弱化时间显示 */}
+                                                    <span className="text-[10px] text-slate-300 dark:text-slate-600 font-mono">{t.time.slice(0, 5)}</span>
+
+                                                    <div className="flex items-center gap-2">
+                                                        {t.seller === 'Official' ? (
+                                                            // 买入样式
+                                                            <>
+                                                                <span className="font-bold text-slate-700 dark:text-slate-200">{t.buyer}</span>
+                                                                <Icon name="download" className="w-3 h-3 text-slate-300" />
+                                                                <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-900/20 px-1.5 rounded">{t.amount}</span>
+                                                            </>
+                                                        ) : (
+                                                            // 转账样式
+                                                            <>
+                                                                <span className="font-bold text-slate-700 dark:text-slate-200">{t.buyer}</span>
+                                                                <Icon name="arrow-right" className="w-3 h-3 text-slate-300" />
+                                                                <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-900/20 px-1.5 rounded">{t.amount}</span>
+                                                                <Icon name="arrow-right" className="w-3 h-3 text-slate-300" />
+                                                                <span className="text-xs text-slate-600 dark:text-slate-400">{t.seller}</span>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </div>
+                                                {/* 删除按钮保持不变 */}
                                                 <button
                                                     onClick={() => deleteTransaction(t.id)}
                                                     aria-label="删除记录"
@@ -414,28 +549,29 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
                                 <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden overflow-x-auto">
                                     <table className="w-full text-xs min-w-[300px]">
                                         <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-medium">
-                                            <tr><th className="p-3 text-left pl-4">玩家</th><th className="p-3 text-right">总投入</th><th className="p-3 text-right w-28">剩余筹码</th><th className="p-3 text-right pr-4">净盈亏</th><th className="p-3 w-8"></th></tr>
+                                            <tr><th className="p-3 text-left pl-4">玩家</th><th className="p-3 text-right text-slate-400 font-normal">总投入</th><th className="p-3 text-right w-28 text-slate-400 font-normal">剩余筹码</th><th className="p-3 text-right pr-4">净盈亏</th><th className="p-3 w-8"></th></tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                             {calculatedResults.map((p) => (
                                                 <tr key={p.name} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
                                                     <td className="p-3 pl-4 font-bold text-slate-700 dark:text-slate-200">{p.name}</td>
-                                                    <td className="p-3 text-right text-slate-400 font-mono tracking-tight">-{p.totalBuyIn}</td>
+                                                    {/* 总投入 - 改为正数显示，颜色调淡以降低认知负荷 */}
+                                                    <td className="p-3 text-right text-slate-400 dark:text-slate-500 font-mono tracking-tight">{p.totalBuyIn}</td>
                                                     <td className="p-2">
                                                         <input
                                                             type="number"
                                                             placeholder="0"
                                                             value={finalStacks[p.name] || ''}
                                                             onChange={e => updateFinalStack(p.name, e.target.value)}
-                                                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 px-2 text-right font-mono text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder-slate-300"
+                                                            className="w-full bg-slate-50 hover:bg-white dark:bg-slate-900 dark:hover:bg-slate-800 border-2 border-dashed border-slate-200 hover:border-emerald-300 focus:border-emerald-500 dark:border-slate-700 dark:hover:border-emerald-700 dark:focus:border-emerald-500 rounded-lg py-1.5 px-2 text-right font-mono text-sm outline-none transition-all placeholder-slate-300"
                                                         />
                                                     </td>
                                                     <td className="p-3 pr-4 text-right">
                                                         <span className={`inline-block min-w-[3rem] px-2 py-0.5 rounded text-center font-mono font-bold ${p.net > 0
-                                                                ? 'bg-red-50 text-red-500 dark:bg-red-900/20 dark:text-red-400'
-                                                                : p.net < 0
-                                                                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400'
-                                                                    : 'text-slate-300'
+                                                            ? 'bg-red-50 text-red-500 dark:bg-red-900/20 dark:text-red-400'
+                                                            : p.net < 0
+                                                                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400'
+                                                                : 'text-slate-300'
                                                             }`}>
                                                             {p.net > 0 ? '+' : ''}{p.net}
                                                         </span>

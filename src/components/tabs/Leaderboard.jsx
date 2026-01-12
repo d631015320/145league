@@ -64,8 +64,8 @@ const Leaderboard = ({
         powerScore: { text: 'text-slate-600 dark:text-slate-300', bg: 'bg-slate-50/50 dark:bg-slate-900/10' },
         totalScore: { text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50/50 dark:bg-blue-900/10' },
         avgScore: { text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50/50 dark:bg-blue-900/10' },
-        totalChips: { text: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-50/50 dark:bg-teal-900/10' },
-        avgChips: { text: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-50/50 dark:bg-teal-900/10' },
+        totalChips: { text: 'text-red-600 dark:text-red-400', bg: 'bg-red-50/50 dark:bg-red-900/10' },
+        avgChips: { text: 'text-red-600 dark:text-red-400', bg: 'bg-red-50/50 dark:bg-red-900/10' },
         goldContent: { text: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50/50 dark:bg-orange-900/10' },
         wins: { text: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-50/50 dark:bg-yellow-900/10' },
         votedMvpCount: { text: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-50/50 dark:bg-indigo-900/10' },
@@ -202,7 +202,7 @@ const Leaderboard = ({
                                 </div>
                                 <div>
                                     <div className="text-[10px] text-slate-400 uppercase">总筹码</div>
-                                    <div className={`font-bold font-mono tabular-nums ${p.totalChips >= 0 ? 'text-teal-500' : 'text-slate-400'}`}>{p.totalChips > 0 ? '+' : ''}{p.totalChips}</div>
+                                    <div className={`font-bold font-mono tabular-nums ${p.totalChips > 0 ? 'text-red-500' : p.totalChips < 0 ? 'text-green-500' : 'text-slate-400'}`}>{p.totalChips > 0 ? '+' : ''}{p.totalChips}</div>
                                 </div>
                                 <div>
                                     <div className="text-[10px] text-slate-400 uppercase">吃鸡</div>
@@ -269,11 +269,11 @@ const Leaderboard = ({
                                 <span className="inline-flex items-center gap-1 justify-center">总积分 {getSortIcon('totalScore')}</span>
                             </th>
                             <th className="px-3 py-3 w-20 text-center border-b border-slate-200 dark:border-slate-800">趋势</th>
-                            <th className={sortableHeaderClass('totalChips', 'center')} onClick={() => onSort('totalChips')}>
-                                <span className="inline-flex items-center gap-1 justify-center">总筹码 {getSortIcon('totalChips')}</span>
-                            </th>
                             <th className={sortableHeaderClass('avgChips', 'center')} onClick={() => onSort('avgChips')}>
                                 <span className="inline-flex items-center gap-1 justify-center">场均筹码 {getSortIcon('avgChips')}</span>
+                            </th>
+                            <th className={sortableHeaderClass('totalChips', 'center')} onClick={() => onSort('totalChips')}>
+                                <span className="inline-flex items-center gap-1 justify-center">总筹码 {getSortIcon('totalChips')}</span>
                             </th>
                             <th className={sortableHeaderClass('goldContent', 'center')} onClick={() => onSort('goldContent')}>
                                 <span className="inline-flex items-center gap-1 justify-center">含金量 {getSortIcon('goldContent')}</span>
@@ -331,11 +331,11 @@ const Leaderboard = ({
                                 <td className="px-3 py-4 w-20">
                                     <Sparkline data={p.powerTrend} />
                                 </td>
-                                <td className={`pl-5 pr-10 py-4 text-right ${p.totalChips >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-slate-400 dark:text-slate-500'} ${getCellHighlightBg('totalChips')}`}>
-                                    {p.totalChips > 0 ? '+' : ''}{p.totalChips}
-                                </td>
-                                <td className={`pl-5 pr-10 py-4 text-right ${p.avgChips >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-slate-400 dark:text-slate-500'} ${getCellHighlightBg('avgChips')}`}>
+                                <td className={`pl-5 pr-10 py-4 text-right ${p.avgChips > 0 ? 'text-red-600 dark:text-red-400' : p.avgChips < 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'} ${getCellHighlightBg('avgChips')}`}>
                                     {Math.round(p.avgChips)}
+                                </td>
+                                <td className={`pl-5 pr-10 py-4 text-right ${p.totalChips > 0 ? 'text-red-600 dark:text-red-400' : p.totalChips < 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'} ${getCellHighlightBg('totalChips')}`}>
+                                    {p.totalChips > 0 ? '+' : ''}{p.totalChips}
                                 </td>
                                 <td className={`px-5 py-4 text-center text-orange-500 dark:text-orange-400 ${getCellHighlightBg('goldContent')}`}>
                                     {p.goldContent !== undefined && p.goldContent !== null ? p.goldContent : <span className="text-slate-300 dark:text-slate-600">-</span>}

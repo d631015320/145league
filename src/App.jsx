@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 
 // --- 常量 ---
-import { GAMES_PER_SEASON, TAB_CONFIG, NETWORK_TIMEOUT } from './constants';
+import { GAMES_PER_SEASON, TAB_CONFIG, NETWORK_TIMEOUT, DEFAULT_QUICK_AMOUNTS } from './constants';
 
 // --- 自定义 Hooks ---
 import useData from './hooks/useData'
@@ -99,6 +99,55 @@ const App = () => {
       return String(b.id).localeCompare(String(a.id));
     });
   }, [matchHistory]);
+
+  // 计算常用筹码金额（基于所有历史比赛）
+  const frequentAmounts = useMemo(() => {
+    // 统计所有包含交易记录的比赛
+    const validMatches = sortedHistory.filter(m => m.transactions && m.transactions.length > 0);
+
+    // 如果有效数据太少（少于 3 场），直接返回默认配置
+    if (validMatches.length < 3) {
+      return { list: DEFAULT_QUICK_AMOUNTS, hot: null };
+    }
+
+    const frequency = {};
+
+    validMatches.forEach(match => {
+      match.transactions.forEach(t => {
+        const amt = t.amount;
+        if (amt > 0) {
+          frequency[amt] = (frequency[amt] || 0) + 1;
+        }
+      });
+    });
+
+    // 按频率降序排列
+    const topAmounts = Object.entries(frequency)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(entry => parseInt(entry[0]));
+
+    // 如果分析结果为空，返回默认值
+    if (topAmounts.length === 0) return { list: DEFAULT_QUICK_AMOUNTS, hot: null };
+
+    // 如果不足 4 个，补全默认值中不重复的
+    if (topAmounts.length < 4) {
+      DEFAULT_QUICK_AMOUNTS.forEach(d => {
+        if (!topAmounts.includes(d)) topAmounts.push(d);
+      });
+    }
+
+    // 最终显示前 4 个，按金额从小到大排序
+    const finalAmounts = topAmounts.slice(0, 4).sort((a, b) => a - b);
+
+    // 找出频率最高的金额 (The Hottest) - 即 topAmounts 中的第一个（因为它之前是按频率降序排的）
+    const hottestAmount = topAmounts.length > 0 ? topAmounts[0] : null;
+
+    return {
+      list: finalAmounts,
+      hot: hottestAmount
+    };
+  }, [sortedHistory]);
 
   // 赛季归属映射
   const matchSeasons = useMemo(() => {
@@ -303,12 +352,18 @@ const App = () => {
 
           {activeTab === 'newGame' && (
             <NewGameFormTab
+              key={editingMatchId || 'new'}
               isAdmin={isAdmin}
               allPlayerNames={allPlayerNames}
               playerProfiles={playerProfiles}
               editingMatch={matchHistory.find(m => m.id === editingMatchId)}
               onSave={handleSaveGame}
-              onCancelEdit={() => setEditingMatchId(null)}
+              onCancelEdit={() => {
+                // 🔥 取消编辑时先清除草稿，再重置编辑状态
+                localStorage.removeItem('match_draft')
+                setEditingMatchId(null)
+              }}
+              quickAmounts={frequentAmounts}
             />
           )}
 

@@ -25,6 +25,9 @@ export const GAMES_PER_SEASON = 10;
 /** 筹码汇率 */
 export const CHIP_EXCHANGE_RATE = 100;
 
+/** 默认快捷筹码金额 */
+export const DEFAULT_QUICK_AMOUNTS = [400, 500, 600, 700];
+
 /** 排名基础分数 (1-10名) */
 export const BASE_SCORES = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
