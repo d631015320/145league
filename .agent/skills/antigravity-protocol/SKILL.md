@@ -116,6 +116,36 @@ root/
 
 ---
 
+## 6. Git 提交规范 (Git Commit Convention)
+
+### 🔴 必须遵守 (MANDATORY)
+**所有 Git Commit Message 必须使用中文。**
+
+### 格式标准
+```
+<type>: <description>
+```
+
+### Type 对照表
+| Type | 含义 (中文) | 示例 |
+|------|------------|------|
+| **feat** | 新功能 | `feat: 增加用户登录页面` |
+| **fix** | 修复 Bug | `fix: 修复积分计算逻辑错误` |
+| **docs** | 文档变更 | `docs: 更新 README 安装指南` |
+| **style** | 格式/样式 | `style: 修改首页按钮颜色` (不影响逻辑) |
+| **refactor** | 代码重构 | `refactor: 优化数据获取 Hook` |
+| **perf** | 性能优化 | `perf: 减少首页加载体积` |
+| **test** | 测试代码 | `test: 增加用户组件单元测试` |
+| **chore** | 杂务/构建 | `chore: 更新 package.json 依赖` |
+
+### 示例
+- ✅ `feat: 完成排行榜功能开发`
+- ✅ `fix: 解决 Electron 启动白屏问题`
+- ❌ `add login` (未使用标准 Type，使用了英文)
+- ❌ `修复 Bug` (缺少 Type 前缀)
+
+---
+
 ## 5. 代码质量与风格 (Code Quality & Style)
 
 ### React 最佳实践

@@ -2,7 +2,7 @@
  * NewGameForm 组件测试
  * 测试清空表单功能
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import * as fc from 'fast-check'
 
 // 测试 hasFormData 函数逻辑
@@ -139,7 +139,7 @@ describe('属性测试: 表单重置完整性', () => {
         fc.string({ maxLength: 20 }),
         (roster, transactions, finalStacks, votedMvp, luckyPlayer) => {
           // 设置任意表单状态
-          const initialState = createFormState(roster, transactions, finalStacks, votedMvp, luckyPlayer)
+          createFormState(roster, transactions, finalStacks, votedMvp, luckyPlayer)
 
           // 执行重置
           const resetState = resetFormState()
@@ -238,7 +238,6 @@ describe('属性测试: 表单重置完整性', () => {
         (timestamp) => {
           const randomDate = new Date(timestamp)
           const dateStr = randomDate.toISOString().slice(0, 10)
-          const _initialState = { gameDate: dateStr }
 
           // 重置后应为当天日期
           const resetState = resetFormState()

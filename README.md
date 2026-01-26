@@ -35,6 +35,7 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/github/stars/d631015320/145league?style=flat-square&logo=github&label=Stars&color=yellow" alt="GitHub stars">
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome">
   <img src="https://img.shields.io/badge/Node.js-%3E%3D18.0.0-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node">
   <img src="https://img.shields.io/badge/Platform-Web%20%7C%20Desktop-blue?style=flat-square" alt="Platform">

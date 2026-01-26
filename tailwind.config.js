@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
-// 为了确保 Electron 和 Vite 环境兼容性最稳，我们统一使用 module.exports
-module.exports = {
+// 为了确保 Electron 和 Vite 环境兼容性最稳，我们统一使用 export default (ESM)
+export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -16,8 +16,8 @@ module.exports = {
       // 2. 保留你的 Brand 品牌色
       colors: {
         brand: {
-          50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7', 
-          400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857', 
+          50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7',
+          400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857',
           800: '#065f46', 900: '#064e3b', 950: '#022c22',
         }
       },

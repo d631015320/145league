@@ -249,17 +249,17 @@ function useStatsCalculator(matchHistory, selectedSeason, leagueStats, playerPro
       const adjBeatRate = (avgBeatRate * p.gamesPlayed + leagueAvgBeatRate * priorGames) / (p.gamesPlayed + priorGames)
 
       // 贝叶斯修正后的胜率
-      const winRate = p.wins / p.gamesPlayed || 0
+      // const winRate = p.wins / p.gamesPlayed || 0
       const leagueAvgWinRate = leagueStats?.leagueAvgWinRate || 0.1
       const adjWinRate = (p.wins + leagueAvgWinRate * priorGames) / (p.gamesPlayed + priorGames)
 
       // 贝叶斯修正后的赢码率
-      const chipWinRate = p.chipWins / p.gamesPlayed || 0
+      // const chipWinRate = p.chipWins / p.gamesPlayed || 0
       const leagueAvgChipWinRate = leagueStats?.leagueAvgChipWinRate || 0.33
       const adjChipWinRate = (p.chipWins + leagueAvgChipWinRate * priorGames) / (p.gamesPlayed + priorGames)
 
       // 贝叶斯修正后的MVP率
-      const mvpRate = p.votedMvpCount / p.gamesPlayed || 0
+      // const mvpRate = p.votedMvpCount / p.gamesPlayed || 0
       const leagueAvgMvpRate = leagueStats?.leagueAvgMvpRate || 0.1
       const adjMvpRate = (p.votedMvpCount + leagueAvgMvpRate * priorGames) / (p.gamesPlayed + priorGames)
 
