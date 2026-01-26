@@ -1,17 +1,22 @@
 ---
 name: Antigravity Protocol
-description: The master guide for development, editing, and communication standards in the League App project.
+description: 【强制中文】本项目的开发、编辑和沟通标准主指南。所有 AI 输出必须使用中文。
 ---
 
-# Antigravity Protocol (Project Standards)
+> [!CAUTION]
+> ## 🚨 强制性语言约束 🚨
+> **本项目的所有 AI 输出（包括回复、Artifacts、代码注释、Git Commit）必须 100% 使用中文。**
+> **违反此规则的任何英文输出都是严重错误，必须立即自行修正。**
+> **如果你正在阅读这段话，说明你必须遵守中文输出规范。立即检查你的回复语言。**
 
-This skill consolidates all project guidelines, coding standards, and workflow preferences. **You must adhere to these rules when working on this project.**
+# Antigravity Protocol (项目规范)
 
-## 1. 语言与沟通规范 (Language & Communication)
+本技能文件整合了所有项目指导方针、代码标准和工作流偏好。**在处理本项目时，你必须严格遵守这些规则。**
 
-### 🔴 核心法则 (CORE RULE)
-**所有输出必须使用中文 (Chinese)。**
-**All outputs must be in Chinese.**
+## 1. 语言与沟通规范
+
+### 🔴 核心法则
+**所有输出必须使用中文。**
 
 ### 详细要求
 - **回复语言**: 所有的回答、解释、总结、错误分析必须使用 **中文 (中文)**。
