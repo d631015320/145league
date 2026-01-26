@@ -7,32 +7,8 @@ const CareerChart = ({ history, isDark, leagueStats }) => {
     const chartInstance = useRef(null);
     const [metric, setMetric] = useState('powerScore'); // 'powerScore' | 'avgScore' | 'goldContent'
 
-    // 少于2场时显示提示
-    if (!history || history.length < 2) {
-        return (
-            <div className="w-full">
-                <div className="flex justify-end mb-2">
-                    <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg flex text-xs font-bold">
-                        <button className="px-3 py-1 rounded-md bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm">
-                            场均得分
-                        </button>
-                        <button className="px-3 py-1 rounded-md text-slate-400">
-                            含金量
-                        </button>
-                    </div>
-                </div>
-                <div className="h-48 w-full flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
-                    <div className="text-center text-slate-400 dark:text-slate-500">
-                        <div className="text-2xl mb-2">📈</div>
-                        <div className="text-sm">至少需要2场比赛才能显示走势</div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     useEffect(() => {
-        if (!canvasRef.current) return;
+        if (!canvasRef.current || !history || history.length < 2) return;
 
         if (chartInstance.current) {
             chartInstance.current.destroy();
@@ -150,7 +126,31 @@ const CareerChart = ({ history, isDark, leagueStats }) => {
                 chartInstance.current.destroy();
             }
         };
-    }, [history, isDark, metric]);
+    }, [history, isDark, metric, leagueStats]);
+
+    // 少于2场时显示提示
+    if (!history || history.length < 2) {
+        return (
+            <div className="w-full">
+                <div className="flex justify-end mb-2">
+                    <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg flex text-xs font-bold">
+                        <button className="px-3 py-1 rounded-md bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm">
+                            场均得分
+                        </button>
+                        <button className="px-3 py-1 rounded-md text-slate-400">
+                            含金量
+                        </button>
+                    </div>
+                </div>
+                <div className="h-48 w-full flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
+                    <div className="text-center text-slate-400 dark:text-slate-500">
+                        <div className="text-2xl mb-2">📈</div>
+                        <div className="text-sm">至少需要2场比赛才能显示走势</div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full">

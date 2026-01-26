@@ -75,7 +75,7 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
             if (savedDraft) {
                 try {
                     const draft = JSON.parse(savedDraft)
-                    
+
                     // 检查草稿是否过期（24小时 = 86400000ms）
                     const DRAFT_EXPIRY_MS = 24 * 60 * 60 * 1000
                     if (draft.savedAt && Date.now() - draft.savedAt > DRAFT_EXPIRY_MS) {
@@ -90,15 +90,15 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
                         if (data.finalStacks) setFinalStacks(data.finalStacks)
                         if (data.votedMvp) setVotedMvp(data.votedMvp)
                         if (data.luckyPlayer) setLuckyPlayer(data.luckyPlayer)
-                        
+
                         // 显示恢复提示
-                        const savedTime = draft.savedAt 
+                        const savedTime = draft.savedAt
                             ? new Date(draft.savedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
                             : '未知时间'
                         setDraftToast(`已恢复 ${savedTime} 的草稿`)
                         setTimeout(() => setDraftToast(null), 3000)
                     }
-                } catch (e) { /* 忽略解析错误 */ }
+                } catch { /* 忽略解析错误 */ }
             }
         }
         setHasLoaded(true)
@@ -107,12 +107,12 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
     // 自动保存草稿（仅在新建模式下，带防抖）
     useEffect(() => {
         if (!hasLoaded || editingMatch) return
-        
+
         // 清除之前的定时器
         if (saveTimerRef.current) {
             clearTimeout(saveTimerRef.current)
         }
-        
+
         // 500ms 防抖保存
         saveTimerRef.current = setTimeout(() => {
             const draftData = {
@@ -121,7 +121,7 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
             }
             localStorage.setItem('match_draft', JSON.stringify(draftData))
         }, 500)
-        
+
         // 清理函数
         return () => {
             if (saveTimerRef.current) {
@@ -305,7 +305,7 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
                     {draftToast}
                 </div>
             )}
-            
+
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><Icon name="edit-3" className="w-5 h-5 text-emerald-500" /> 比赛管理台</h2>
                 {editingMatch ? (

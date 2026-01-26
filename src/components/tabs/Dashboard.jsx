@@ -30,7 +30,7 @@ const Dashboard = ({
         : 0;
 
     // 移动端显示前 3 名，桌面端显示前 5 名
-    const latestMatchDisplayCount = isMobile ? 3 : 5
+
 
     return (
         <>

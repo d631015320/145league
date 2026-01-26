@@ -26,6 +26,12 @@ function useCountUp(targetValue, options = {}) {
     const startTimeRef = useRef(null)
     const animationRef = useRef(null)
     const previousTargetRef = useRef(targetValue)
+    const displayValueRef = useRef(displayValue)
+
+    // 同步 Ref
+    useEffect(() => {
+        displayValueRef.current = displayValue
+    }, [displayValue])
 
     useEffect(() => {
         // 如果禁用动画，直接显示目标值
@@ -35,11 +41,11 @@ function useCountUp(targetValue, options = {}) {
         }
 
         // 如果目标值没变，不重新动画
-        if (previousTargetRef.current === targetValue && displayValue === targetValue) {
+        if (previousTargetRef.current === targetValue && displayValueRef.current === targetValue) {
             return
         }
 
-        const startValue = previousTargetRef.current !== targetValue ? 0 : displayValue
+        const startValue = previousTargetRef.current !== targetValue ? 0 : displayValueRef.current
         previousTargetRef.current = targetValue
 
         // 取消之前的动画

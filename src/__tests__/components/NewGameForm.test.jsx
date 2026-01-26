@@ -2,7 +2,7 @@
  * NewGameForm 组件测试
  * 测试清空表单功能
  */
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import * as fc from 'fast-check'
 
 // 测试 hasFormData 函数逻辑
@@ -139,7 +139,13 @@ describe('属性测试: 表单重置完整性', () => {
         fc.string({ maxLength: 20 }),
         (roster, transactions, finalStacks, votedMvp, luckyPlayer) => {
           // 设置任意表单状态
-          createFormState(roster, transactions, finalStacks, votedMvp, luckyPlayer)
+          // The variable 'roster', 'transactions', 'finalStacks', 'votedMvp', 'luckyPlayer' are unused here.
+          // They are passed to createFormState, but createFormState's return value is not used.
+          // The test only asserts on resetFormState().
+          // To fix the unused variable warning, we can remove the call to createFormState
+          // as it doesn't affect the outcome of this specific test, which only checks resetFormState.
+          // Alternatively, if the intent was to test that createFormState correctly sets state,
+          // that would be a different test. For this property, we only care about the reset.
 
           // 执行重置
           const resetState = resetFormState()
@@ -163,6 +169,14 @@ describe('属性测试: 表单重置完整性', () => {
         fc.array(playerNameArb, { minLength: 1, maxLength: 10 }),
         (roster) => {
           // 无论初始 roster 有多少玩家
+          // The variable 'roster' is unused here.
+          // The test only asserts on resetFormState().
+          // We can remove the expect(roster.length).toBeGreaterThan(0) if it's not strictly needed
+          // to demonstrate the initial state, as the property generator ensures minLength: 1.
+          // However, keeping it as a sanity check for the generated data is fine,
+          // but the variable itself is not used in the assertion about the reset state.
+          // For the purpose of fixing "unused variables", we'll keep the original logic
+          // but acknowledge that 'roster' is not used in the *reset* assertion.
           expect(roster.length).toBeGreaterThan(0)
 
           // 重置后应为空
@@ -181,6 +195,8 @@ describe('属性测试: 表单重置完整性', () => {
         fc.array(transactionArb, { minLength: 1, maxLength: 20 }),
         (transactions) => {
           // 无论初始有多少交易
+          // The variable 'transactions' is unused here.
+          // Similar to 'roster' above, it's used for an initial state check, not the reset assertion.
           expect(transactions.length).toBeGreaterThan(0)
 
           // 重置后应为空
@@ -198,6 +214,7 @@ describe('属性测试: 表单重置完整性', () => {
         fc.dictionary(playerNameArb, fc.integer({ min: 1, max: 100000 }), { minKeys: 1, maxKeys: 10 }),
         (finalStacks) => {
           // 无论初始有多少筹码数据
+          // The variable 'finalStacks' is unused here.
           expect(Object.keys(finalStacks).length).toBeGreaterThan(0)
 
           // 重置后应为空对象
@@ -217,6 +234,7 @@ describe('属性测试: 表单重置完整性', () => {
         fc.string({ minLength: 1, maxLength: 20 }),
         (votedMvp, luckyPlayer) => {
           // 无论初始值是什么
+          // The variables 'votedMvp' and 'luckyPlayer' are unused here.
           expect(votedMvp.length).toBeGreaterThan(0)
           expect(luckyPlayer.length).toBeGreaterThan(0)
 
@@ -237,8 +255,6 @@ describe('属性测试: 表单重置完整性', () => {
         fc.integer({ min: 1577836800000, max: 1924905600000 }), // 2020-01-01 到 2030-12-31
         (timestamp) => {
           const randomDate = new Date(timestamp)
-          const dateStr = randomDate.toISOString().slice(0, 10)
-
           // 重置后应为当天日期
           const resetState = resetFormState()
           const today = new Date().toISOString().slice(0, 10)

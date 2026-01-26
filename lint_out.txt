@@ -1,0 +1,27 @@
+﻿
+> league-app@0.0.0 lint
+> eslint .
+
+
+C:\my_all_project\145league\src\__tests__\components\NewGameForm.test.jsx
+    5:32  warning  'vi' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                no-unused-vars
+  240:17  warning  'dateStr' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\my_all_project\145league\src\charts\CareerChart.jsx
+   34:5  error    React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+  153:8  warning  React Hook useEffect has a missing dependency: 'leagueStats'. Either include it or remove the dependency array                                                                               react-hooks/exhaustive-deps
+
+C:\my_all_project\145league\src\components\common\AnimatedNumber.jsx
+  36:27  error  React Hook "useCountUp" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+
+C:\my_all_project\145league\src\components\modals\PlayerProfileModal.jsx
+  19:8  warning  'useCountUp' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\my_all_project\145league\src\components\tabs\Dashboard.jsx
+  33:11  warning  'latestMatchDisplayCount' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+C:\my_all_project\145league\src\components\tabs\NewGameForm.jsx
+  101:26  warning  'e' is defined but never used  no-unused-vars
+
+✖ 8 problems (2 errors, 6 warnings)
+

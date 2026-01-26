@@ -16,7 +16,6 @@ import usePlayerMatches from '../../hooks/usePlayerMatches'
 import useBadges from '../../hooks/useBadges'
 import { usePlayerRadarStats } from '../../hooks/useRadarStats'
 import { useIsMobile } from '../../hooks/useMediaQuery'
-import useCountUp from '../../hooks/useCountUp'
 
 const PlayerProfileModal = ({
   player, history, onClose, onUploadAvatar, leagueStats,

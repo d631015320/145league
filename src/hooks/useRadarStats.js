@@ -132,7 +132,7 @@ export function calculatePowerScore(playerData, leagueStats, activeCoeff = 1.0, 
     chipWins,
     mvpCount,
     sumPlayers,
-    ranks,
+    // ranks,  // 暂未使用
     chipsList = []  // 每场筹码数组（用于计算筹码标准差）
   } = playerData
 
@@ -200,7 +200,7 @@ export function calculatePowerScore(playerData, leagueStats, activeCoeff = 1.0, 
   const adjustedMvpRate = (mvpCount + priorMvps) / (gamesPlayed + priorGames)
 
   // ========== 原始值 → 贝叶斯修正 → 打折 → 归一化 → 最终分数 ==========
-  
+
   // 贝叶斯修正后打折
   const discountedEfficiency = adjustedAvgScore * activeCoeff
   const discountedPlunder = adjustedPlunder * activeCoeff
@@ -381,7 +381,7 @@ function useRadarStats(leagueStats, seasonTotalGames = 10) {
     const mvpScore = Math.max(0, Math.min(100, normMvpRate * 100))
 
     // 计算战力（加权平均）
-    const powerScore = 
+    const powerScore =
       dominationScore * POWER_WEIGHTS.domination +
       defeatScore * POWER_WEIGHTS.knockout +
       efficiencyScore * POWER_WEIGHTS.efficiency +
@@ -475,7 +475,7 @@ export function usePlayerRadarStats(player, playerMatches, totalGames, leagueSta
     const priorGames = calculatePriorGames(currentSeasonTotal)
 
     // ========== 计算各维度原始值 ==========
-    
+
     // 1. 稳定性 - 场均筹码/标准差，类似夏普比率
     const chipsList = playerMatches.map(m => parseFloat(m.result?.chips) || 0)
     const avgChipForStd = chipsList.reduce((a, b) => a + b, 0) / chipsList.length
@@ -534,7 +534,7 @@ export function usePlayerRadarStats(player, playerMatches, totalGames, leagueSta
     const adjustedMvpRate = (mvpCount + priorMvps) / (totalGames + priorGames)
 
     // ========== 原始值 → 贝叶斯修正 → 打折 → 归一化 → 最终分数 ==========
-    
+
     const normalize = (value, min, max) => {
       const range = max - min
       if (range <= 0) return 50
@@ -589,7 +589,7 @@ export function usePlayerRadarStats(player, playerMatches, totalGames, leagueSta
     )
 
     // 计算综合战力（归一化后的维度加权求和）
-    const finalPowerScore = 
+    const finalPowerScore =
       dominationScore * POWER_WEIGHTS.domination +
       defeatScore * POWER_WEIGHTS.knockout +
       efficiencyScore * POWER_WEIGHTS.efficiency +

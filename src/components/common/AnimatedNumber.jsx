@@ -17,14 +17,10 @@ function AnimatedNumber({ value, decimals, suffix = '', className = '', duration
     let detectedSuffix = suffix
 
     if (typeof value === 'string') {
-        // 从字符串中提取数字和后缀（如 "19%" -> 19, "%"）
         const match = value.match(/^([\d.]+)(.*)$/)
         if (match) {
             numericValue = parseFloat(match[1])
             detectedSuffix = match[2] || suffix
-        } else {
-            // 无法解析，直接显示原始值
-            return <span className={className}>{value}</span>
         }
     }
 
@@ -34,6 +30,11 @@ function AnimatedNumber({ value, decimals, suffix = '', className = '', duration
         : (String(numericValue).includes('.') ? String(numericValue).split('.')[1]?.length || 1 : 0)
 
     const animatedValue = useCountUp(numericValue, { duration, decimals: autoDecimals })
+
+    if (typeof value === 'string' && !value.match(/^([\d.]+)(.*)$/)) {
+        // 无法解析，直接显示原始值
+        return <span className={className}>{value}</span>
+    }
 
     return (
         <span className={className}>
