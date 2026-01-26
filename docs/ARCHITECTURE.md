@@ -73,29 +73,33 @@ league-app/
 | `useFirebaseData` | 实时数据订阅 | 集合路径 | 实时数据流 |
 | `useTheme` | 主题状态管理 | - | 主题状态、切换方法 |
 
-## 数据模型
-
+## 数据模型 (Ref: src/types/index.js)
 ```javascript
-// 玩家数据结构
-const Player = {
-  id: 'string',           // 唯一标识
-  name: 'string',         // 玩家名称
-  avatar: 'string',       // 头像 URL
-  stats: {
-    totalGames: 0,        // 总场次
-    totalScore: 0,        // 总积分
-    avgScore: 0,          // 场均积分
-    winRate: 0,           // 胜率
-    powerRating: 0        // 战力值
-  }
+// 玩家统计数据 (PlayerStats)
+const PlayerStats = {
+  name: 'string',         // 玩家网名
+  gamesPlayed: 0,         // 参赛场次
+  totalScore: 0,          // 总积分
+  totalChips: 0,          // 总盈亏
+  wins: 0,                // 胜场数(第一名)
+  powerScore: 0,          // 综合战力值
+  avgScore: 'string',     // 场均分 (格式化)
+  goldContent: 'string',  // 含金量
+  votedMvpCount: 0,       // MVP 次数
+  luckyCount: 0,          // 运气王次数
+  recentTrend: [],        // 得分走势
+  avatar: 'string'        // 头像
 }
 
-// 比赛数据结构
+// 比赛记录 (Match)
 const Match = {
-  id: 'string',           // 唯一标识
-  date: 'timestamp',      // 比赛时间
-  players: [],            // 参赛玩家
-  scores: [],             // 各玩家得分
-  winner: 'string'        // 获胜者 ID
+  id: 'string',           // 唯一ID
+  date: 'string',         // 日期 (YYYY-MM-DD)
+  totalPlayers: 0,        // 总人数
+  results: [],            // PlayerResult[] (排名、分数、净盈亏)
+  transactions: [],       // Transaction[] (买入流水)
+  finalStacks: {},        // {name: amount} 离场筹码
+  votedMvp: 'string',     // MVP玩家
+  luckyPlayer: 'string'   // 运气王玩家
 }
 ```

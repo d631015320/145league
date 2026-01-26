@@ -33,7 +33,6 @@
 | `README.md` | 项目说明文档 |
 | `CHANGELOG.md` | 版本更新日志 |
 | `LICENSE` | 开源许可证 |
-| `backup.json` | 数据备份文件 |
 | `wrangler.json` | Cloudflare Workers 配置 |
 | `scan_project.cjs` | 项目扫描脚本 |
 | `full_project_context.txt` | 项目完整上下文（AI 辅助用） |
@@ -47,6 +46,7 @@ league-app/
 ├── src/                    # 源代码目录
 ├── electron/               # Electron 桌面端
 ├── public/                 # 静态资源
+├── data/                   # 本地数据备份 (backup.json)
 ├── dist/                   # 构建输出
 ├── docs/                   # 项目文档
 ├── .kiro/                  # Kiro AI 配置
