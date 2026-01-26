@@ -170,8 +170,8 @@
 
 ```bash
 # 1️⃣ 克隆仓库
-git clone https://github.com/d631015320/league-app.git
-cd league-app
+git clone https://github.com/d631015320/145league.git
+cd 145league
 
 # 2️⃣ 安装依赖
 npm install
@@ -452,7 +452,7 @@ league-app/
 
 ```bash
 # 1. Fork 并克隆仓库
-git clone https://github.com/YOUR_USERNAME/league-app.git
+git clone https://github.com/YOUR_USERNAME/145league.git
 
 # 2. 创建功能分支
 git checkout -b feature/amazing-feature
@@ -568,7 +568,7 @@ MIT License © 2025 d631015320
 </p>
 
 <p align="center">
-  <a href="https://github.com/d631015320/league-app">
+  <a href="https://github.com/d631015320/145league">
     <img src="https://img.shields.io/badge/⭐_如果有帮助请给个_Star-yellow?style=for-the-badge" alt="Star">
   </a>
 </p>
