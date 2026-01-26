@@ -29,7 +29,8 @@ const RANK_TIERS = [
     color: 'text-red-500 dark:text-red-400',
     bgColor: 'bg-gradient-to-r from-red-500 to-amber-500',
     borderColor: 'border-red-500/50',
-    icon: '👑'
+    icon: 'crown',
+    iconColor: 'text-amber-400'
   },
   { 
     name: '钻石', 
@@ -37,7 +38,8 @@ const RANK_TIERS = [
     color: 'text-cyan-400 dark:text-cyan-300',
     bgColor: 'bg-cyan-500',
     borderColor: 'border-cyan-500/50',
-    icon: '💎'
+    icon: 'gem',
+    iconColor: 'text-cyan-400'
   },
   { 
     name: '翡翠', 
@@ -45,7 +47,8 @@ const RANK_TIERS = [
     color: 'text-emerald-500 dark:text-emerald-400',
     bgColor: 'bg-emerald-500',
     borderColor: 'border-emerald-500/50',
-    icon: '💚'
+    icon: 'hexagon',
+    iconColor: 'text-emerald-400'
   },
   { 
     name: '铂金', 
@@ -53,7 +56,8 @@ const RANK_TIERS = [
     color: 'text-teal-400 dark:text-teal-300',
     bgColor: 'bg-teal-500',
     borderColor: 'border-teal-500/50',
-    icon: '🔷'
+    icon: 'diamond',
+    iconColor: 'text-teal-400'
   },
   { 
     name: '黄金', 
@@ -61,7 +65,8 @@ const RANK_TIERS = [
     color: 'text-amber-500 dark:text-amber-400',
     bgColor: 'bg-amber-500',
     borderColor: 'border-amber-500/50',
-    icon: '🥇'
+    icon: 'medal',
+    iconColor: 'text-amber-500'
   },
   { 
     name: '白银', 
@@ -69,7 +74,8 @@ const RANK_TIERS = [
     color: 'text-slate-400 dark:text-slate-300',
     bgColor: 'bg-slate-400',
     borderColor: 'border-slate-400/50',
-    icon: '🥈'
+    icon: 'circle',
+    iconColor: 'text-slate-400'
   },
   { 
     name: '青铜', 
@@ -77,7 +83,8 @@ const RANK_TIERS = [
     color: 'text-orange-700 dark:text-orange-500',
     bgColor: 'bg-orange-700',
     borderColor: 'border-orange-700/50',
-    icon: '🥉'
+    icon: 'triangle',
+    iconColor: 'text-orange-600'
   },
   { 
     name: '黑铁', 
@@ -165,10 +172,10 @@ function DimensionBar({ stat, compareVal }) {
           </span>
           {/* 段位徽章 */}
           <span 
-            className={`text-[10px] px-1.5 py-0.5 rounded-full ${tier.color} border ${tier.borderColor} bg-slate-100/50 dark:bg-slate-800/50`}
+            className={`text-[10px] px-1.5 py-0.5 rounded-full ${tier.color} border ${tier.borderColor} bg-slate-100/50 dark:bg-slate-800/50 flex items-center gap-0.5`}
             title={`${tier.name}段位`}
           >
-            {tier.icon}{tier.name}
+            <Icon name={tier.icon} className={`w-3 h-3 ${tier.iconColor}`} />{tier.name}
           </span>
         </div>
       </div>

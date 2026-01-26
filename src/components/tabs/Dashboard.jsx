@@ -212,7 +212,7 @@ const Dashboard = ({
                                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 w-8 flex-shrink-0">{dim.label}</span>
 
                                     {/* 前三名头像 */}
-                                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                    <div className="flex items-center gap-2.5 flex-shrink-0 ml-2">
                                         {dimTop3.slice(0, 3).map((p, idx) => (
                                             <div
                                                 key={p.name}
@@ -280,7 +280,7 @@ const Dashboard = ({
                                 {/* 参赛者网格 - 显示前 8 名 */}
                                 <div className={`grid gap-2 sm:gap-3 ${isMobile ? 'grid-cols-4' : 'grid-cols-4 lg:grid-cols-8'}`}>
                                     {match.results.slice(0, isMobile ? 6 : 8).map((r, i) => (
-                                        <div key={i} className={`relative p-2 rounded border flex flex-col items-center justify-center text-center transition-colors ${r.rank === 1 ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-500/10 dark:border-yellow-500/30' : 'bg-white dark:bg-slate-800/30 border-slate-100 dark:border-slate-700/30'}`}>
+                                        <div key={i} className={`relative p-2 rounded-lg border-2 flex flex-col items-center justify-center text-center transition-all ${r.rank === 1 ? 'bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-400 dark:from-yellow-500/20 dark:to-amber-500/10 dark:border-yellow-500/60 shadow-md shadow-yellow-200/50 dark:shadow-yellow-500/20 scale-[1.02]' : 'bg-white dark:bg-slate-800/30 border-slate-100 dark:border-slate-700/30'}`}>
                                             <span className={`text-[10px] font-bold absolute top-1 left-1.5 ${r.rank === 1 ? 'text-yellow-600 dark:text-yellow-500' : 'text-slate-400'}`}>#{r.rank}</span>
                                             <div className={`font-bold text-slate-700 dark:text-slate-200 mt-1 mb-1 truncate w-full ${isMobile ? 'text-xs' : 'text-sm'}`}>{r.name}</div>
                                             <div className={`font-mono ${isMobile ? 'text-[10px]' : 'text-xs'} text-emerald-600 dark:text-emerald-400 font-bold`}>+{r.score}</div>

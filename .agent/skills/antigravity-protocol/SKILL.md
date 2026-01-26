@@ -1,0 +1,132 @@
+---
+name: Antigravity Protocol
+description: The master guide for development, editing, and communication standards in the League App project.
+---
+
+# Antigravity Protocol (Project Standards)
+
+This skill consolidates all project guidelines, coding standards, and workflow preferences. **You must adhere to these rules when working on this project.**
+
+## 1. 语言与沟通规范 (Language & Communication)
+
+### 🔴 核心法则 (CORE RULE)
+**所有输出必须使用中文 (Chinese)。**
+**All outputs must be in Chinese.**
+
+### 详细要求
+- **回复语言**: 所有的回答、解释、总结、错误分析必须使用 **中文 (中文)**。
+- **Artifacts**: 下列所有 Agent 生成的文件必须完全使用 **中文** 编写：
+    - `task.md` (任务清单)
+    - `implementation_plan.md` (实施计划)
+    - `walkthrough.md` (验证报告)
+- **代码注释**: 所有代码注释、文档字符串 (Docstrings)、Git Commit 信息必须使用 **中文**。
+- **用户界面**: 所有面向用户的文本、错误提示、Logs 必须使用 **中文**。
+- **Spec 文档**: `requirements.md`, `design.md` 等必须使用 **中文**。
+
+### 例外 (保持英文)
+- 变量名、函数名、类名 (遵循代码规范)。
+- 第三方库名称。
+- 系统错误堆栈 (Stack Traces)。
+- HTTP 状态码文本 (如 "OK", "Not Found")。
+
+---
+
+## 2. 工作流偏好 (Workflow Preferences)
+
+### 任务执行
+- **单任务原则**: 一次只执行一个主要任务，完成后等待确认。
+- **确认原则**: 大改动前先说明方案 (`implementation_plan.md`)，获得确认后再执行。
+- **理解优先**: 修改代码前必须先读取现有代码 (`read_file` / `view_file`)，严禁盲改。
+
+### 文件操作
+- **安全删除**: 删除文件前确认没有其他地方引用。
+- **一致性**: 移动文件后更新所有 import 路径。
+- **创建文件**: 遵循现有的目录结构 (`src/components`, `src/hooks` 等)。
+
+### 沟通风格
+- **简洁直接**: 不要是冗长的废话。
+- **结果导向**: 完成任务后简短总结。
+- **主动提问**: 遇到不明确的需求，先问清楚再动手。
+
+---
+
+## 3. 编辑策略 (Editing Strategy)
+
+### 核心原则
+- **Fail Fast**: 如果一种方法 (`replace_file_content`) 连续失败 2 次，立即切换到另一种方法 (`write_to_file`)。
+- **Read First**: 编辑前确保了解文件当前状态，包括缩进和上下文。
+- **Verify**: 编辑后必须运行检查工具。
+
+### 工具选择指南
+1.  **`replace_file_content` (首选，<20行修改)**
+    *   **适用**: 修复 Bug、调整逻辑、修改导入。
+    *   **要点**: 
+        *   `oldStr` 必须与文件内容**从字面上完全一致** (包括空格)。
+        *   必须包含 2-3 行上下文。
+2.  **`fsWrite` / `write_to_file` (重写模式)**
+    *   **适用**: 创建新文件、大范围重构 (>50%)、`replace` 失败后。
+    *   **要点**: 写入前必须完全理解文件结构，保留未修改部分的逻辑。
+
+### 编辑后验证清单
+1.  **语法检查**: `npm run lint` (如果可用) 或 IDE 诊断。
+2.  **启动检查**: `npm run dev` 确保并在浏览器中无报错。
+3.  **测试运行**: `npm test` 确保单元测试通过。
+
+---
+
+## 4. 项目架构与规范 (Architecture & Conventions)
+
+### 技术栈 (Tech Stack)
+| Tier | Technology | Version |
+|------|------------|---------|
+| **Core** | Electron + Vite | Latest |
+| **Frontend** | React | 19.x |
+| **Styling** | Tailwind CSS | v3.x |
+| **Icons** | Lucide React | - |
+| **Charts** | Chart.js / Recharts | - |
+| **Testing** | Vitest | - |
+
+### 目录结构参考 (Directory Structure)
+```
+root/
+├── electron/                    # Electron 主进程代码
+│   ├── main.cjs                 # Main entry
+│   └── preload.cjs              # Preload scripts
+│
+├── src/                         # React 前端代码 (Renderer)
+│   ├── components/              # UI 组件
+│   │   ├── common/              # 通用组件 (Avatar, Button)
+│   │   ├── layout/              # 布局组件 (Navbar, Sidebar)
+│   │   └── ...
+│   ├── hooks/                   # 自定义 Hooks
+│   ├── services/                # API 服务 & 业务逻辑
+│   ├── types/                   # TypeScript 类型定义 (如有)
+│   ├── utils/                   # 工具函数
+│   ├── App.jsx                  # 根组件
+│   └── main.jsx                 # 入口文件
+│
+└── package.json
+```
+
+### 命名规范 (Naming Conventions)
+- **组件文件**: `PascalCase` (e.g., `PlayerProfile.jsx`)
+- **函数/变量**: `camelCase` (e.g., `calculateScore`)
+- **常量**: `UPPER_SNAKE_CASE` (e.g., `MAX_RETRY_COUNT`)
+- **CSS 类**: `kebab-case` 或 Tailwind Utility Classes
+
+---
+
+## 5. 代码质量与风格 (Code Quality & Style)
+
+### React 最佳实践
+- **Files**: 使用 `.jsx` (JS) 或 `.tsx` (TS)。
+- **Hooks**: 复杂逻辑必须抽取到自定义 Hooks。
+- **State**: 优先使用本地 State，全局状态 (Zustand/Context) 仅用于跨组件共享。
+- **Components**: 保持组件“原子化”，避免 500行+ 的巨型组件。
+- **Performance**: 合理使用 `useMemo`, `useCallback`。
+- **Validation**: API 调用必须包含 `try-catch` 和错误 UI 反馈。
+- **No Console Logs**: 提交前删除 `console.log`，使用日志库代替。
+
+### 样式规范 (Styling)
+- **Tailwind First**: 严禁手写 CSS 文件，除非处理 Tailwind 无法覆盖的动画。
+- **Consistency**: 使用语义化的颜色 (如 `bg-primary`, `text-error`) 而非硬编码。
