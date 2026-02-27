@@ -3,6 +3,7 @@
  * Supabase CRUD 操作封装
  */
 import { supabase } from '../lib/supabase'
+import { validateMatchData } from '../lib/matchValidation'
 
 /**
  * 保存比赛记录
@@ -11,6 +12,12 @@ import { supabase } from '../lib/supabase'
  * @returns {Promise<string>} 比赛ID
  */
 export async function saveMatch(matchData, matchId = null) {
+  // 数据校验
+  const { valid, errors } = validateMatchData(matchData)
+  if (!valid) {
+    throw new Error(`数据校验失败:\n${errors.join('\n')}`)
+  }
+
   // 转换字段名（驼峰 → 下划线）
   const dbData = {
     date: matchData.date,
@@ -23,6 +30,8 @@ export async function saveMatch(matchData, matchId = null) {
   }
 
   if (matchId) {
+    // 编辑时写入 updated_at
+    dbData.updated_at = new Date().toISOString()
     const { error } = await supabase
       .from('matches')
       .update(dbData)
@@ -161,10 +170,10 @@ export async function renamePlayer(oldName, newName, matchHistory) {
   if (oldProfile) {
     await supabase
       .from('profiles')
-      .upsert({ 
-        name: newName, 
-        avatar: oldProfile.avatar, 
-        real_name: oldProfile.real_name 
+      .upsert({
+        name: newName,
+        avatar: oldProfile.avatar,
+        real_name: oldProfile.real_name
       })
     await supabase.from('profiles').delete().eq('name', oldName)
   }

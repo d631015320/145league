@@ -1,6 +1,7 @@
 // src/hooks/useStatsCalculator.js
 import { useMemo } from 'react';
 import { GAMES_PER_SEASON } from '../constants';
+import { compareByEntryOrder } from '../lib/utils';
 import { calculatePowerScore, calculatePriorGames, getAttendanceTier } from './useRadarStats';
 
 /**
@@ -22,10 +23,8 @@ function useStatsCalculator(matchHistory, selectedSeason, leagueStats, playerPro
     let highestSingle = { name: '', score: -Infinity };
     let latestMatch = null;
 
-    // 预处理：按时间正序排列 (Old -> New)
-    const sortedHistoryAsc = [...matchHistory].sort(
-      (a, b) => new Date(a.date) - new Date(b.date)
-    );
+    // 预处理：按录入顺序正序排列 (Old -> New)
+    const sortedHistoryAsc = [...matchHistory].sort(compareByEntryOrder);
 
     // 赛季筛选逻辑
     let filteredMatches = [];

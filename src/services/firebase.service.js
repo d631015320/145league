@@ -19,6 +19,7 @@ import {
   signOut as firebaseSignOut
 } from '../lib/firebase'
 import { ERROR_MESSAGES } from '../constants'
+import { validateMatchData } from '../lib/matchValidation'
 
 /**
  * 获取用户友好的错误消息
@@ -39,12 +40,26 @@ export function getErrorMessage(error) {
  * @throws {Error} 保存失败时抛出错误
  */
 export async function saveMatch(matchData, matchId = null) {
+  // 数据校验
+  const { valid, errors } = validateMatchData(matchData)
+  if (!valid) {
+    throw new Error(`数据校验失败:\n${errors.join('\n')}`)
+  }
+
   try {
     if (matchId) {
-      await updateDoc(doc(db, 'matches', matchId), matchData);
+      // 编辑时写入 updatedAt
+      await updateDoc(doc(db, 'matches', matchId), {
+        ...matchData,
+        updatedAt: new Date().toISOString()
+      });
       return matchId;
     } else {
-      const docRef = await addDoc(collection(db, 'matches'), matchData);
+      const dataWithTimestamp = {
+        ...matchData,
+        createdAt: new Date().toISOString()
+      };
+      const docRef = await addDoc(collection(db, 'matches'), dataWithTimestamp);
       return docRef.id;
     }
   } catch (error) {

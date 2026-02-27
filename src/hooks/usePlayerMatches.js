@@ -2,6 +2,8 @@
 // 玩家比赛数据 Hook
 
 import { useMemo } from 'react'
+import { GAMES_PER_SEASON } from '../constants'
+import { compareByEntryOrder } from '../lib/utils'
 
 /**
  * 计算单个玩家的绝对赢码指数（贝叶斯修正）
@@ -12,20 +14,19 @@ import { useMemo } from 'react'
  */
 export function calculateRawChipWinRate(playerMatches) {
   if (!playerMatches || playerMatches.length === 0) return 0
-  
+
   // 筹码为正的场次
   const chipWins = playerMatches.filter(m => m.result?.chips > 0).length
   const totalGames = playerMatches.length
-  
+
   // 贝叶斯修正：先验 3场赢1场
   const priorWins = 1
   const priorGames = 3
-  
+
   return (chipWins + priorWins) / (totalGames + priorGames)
 }
 
-// 每赛季场次
-const GAMES_PER_SEASON = 10
+
 
 /**
  * 从历史记录中筛选玩家的比赛数据并计算统计信息
@@ -39,14 +40,14 @@ function usePlayerMatches(player, history, selectedSeason = 'all') {
   // 按赛季筛选比赛历史
   const filteredHistory = useMemo(() => {
     if (selectedSeason === 'all') return history
-    
-    // 按时间正序排列
-    const sortedAsc = [...history].sort((a, b) => new Date(a.date) - new Date(b.date))
+
+    // 按录入顺序正序排列
+    const sortedAsc = [...history].sort(compareByEntryOrder)
     const seasonIndex = parseInt(selectedSeason.slice(1)) - 1
     const start = seasonIndex * GAMES_PER_SEASON
     const end = start + GAMES_PER_SEASON
     const seasonMatches = sortedAsc.slice(start, end)
-    
+
     // 返回降序（与原始 history 格式一致）
     return seasonMatches.reverse()
   }, [history, selectedSeason])
@@ -68,11 +69,11 @@ function usePlayerMatches(player, history, selectedSeason = 'all') {
     const totalGames = playerMatches.length
     const wins = playerMatches.filter(m => m.result?.rank === 1).length
     const winRate = totalGames > 0 ? wins / totalGames : 0
-    
+
     // 调整后的胜率（考虑样本量）
     const careerK = Math.max(2, filteredHistory.length / 4)
     const adjWinRate = wins / (totalGames + careerK)
-    
+
     // 绝对赢码指数（贝叶斯修正）
     const rawChipWinRate = calculateRawChipWinRate(playerMatches)
 

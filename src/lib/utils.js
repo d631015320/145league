@@ -10,6 +10,21 @@ export { BADGE_CONFIG, GAMES_PER_SEASON, CHIP_EXCHANGE_RATE, BASE_SCORES } from 
 // ================= 工具函数 =================
 
 /**
+ * 按录入顺序排序比较函数
+ * 优先级：createdAt > date > id
+ * @param {Object} a - 比赛记录 A
+ * @param {Object} b - 比赛记录 B
+ * @returns {number} 排序比较值
+ */
+export const compareByEntryOrder = (a, b) => {
+    const timeA = a.createdAt || a.date
+    const timeB = b.createdAt || b.date
+    const diff = new Date(timeA) - new Date(timeB)
+    if (diff !== 0) return diff
+    return String(a.id).localeCompare(String(b.id))
+}
+
+/**
  * 获取日期对应的 ISO 周数
  * @description 根据 ISO 8601 标准计算周数，周一为每周第一天
  * @param {string} dateString - 日期字符串，格式为 YYYY-MM-DD
@@ -22,8 +37,8 @@ export const getISOWeek = (dateString) => {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
     const dayNum = d.getUTCDay() || 7;
     d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
     return `${d.getUTCFullYear()}-W${weekNo}`;
 };
 
@@ -46,7 +61,7 @@ export const compressImage = (file) => {
             img.onload = () => {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
-                const size = 150; 
+                const size = 150;
                 canvas.width = size;
                 canvas.height = size;
                 ctx.drawImage(img, 0, 0, size, size);
@@ -89,7 +104,7 @@ export const compressImage = (file) => {
 export const calculateSettlements = (results) => {
     const debtors = [];
     const creditors = [];
-    
+
     // 1. 分离赢家和输家
     results.forEach(r => {
         const chips = parseFloat(r.chips);
@@ -102,22 +117,22 @@ export const calculateSettlements = (results) => {
     creditors.sort((a, b) => b.amount - a.amount);
 
     const transactions = [];
-    let i = 0; 
+    let i = 0;
     let j = 0;
 
     // 3. 双指针抵消算法
     while (i < debtors.length && j < creditors.length) {
         const debtor = debtors[i];
         const creditor = creditors[j];
-        
+
         // 取两者最小值作为转账额
         const amount = Math.min(debtor.amount, creditor.amount);
-        
+
         if (amount > 0) {
-            transactions.push({ 
-                from: debtor.name, 
-                to: creditor.name, 
-                amount: parseFloat(amount.toFixed(2)) 
+            transactions.push({
+                from: debtor.name,
+                to: creditor.name,
+                amount: parseFloat(amount.toFixed(2))
             });
         }
 
@@ -129,7 +144,7 @@ export const calculateSettlements = (results) => {
         if (debtor.amount < 0.01) i++;
         if (creditor.amount < 0.01) j++;
     }
-    
+
     return transactions;
 };
 
@@ -140,10 +155,10 @@ export const calculateSettlements = (results) => {
  * @returns {string} 格式化后的日期字符串
  */
 export const formatDate = (dateString) => {
-  if (!dateString) return ''
-  // 如果已经是 YYYY-MM-DD 格式，直接返回
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString
-  // 否则解析并格式化
-  const date = new Date(dateString)
-  return date.toISOString().slice(0, 10)
+    if (!dateString) return ''
+    // 如果已经是 YYYY-MM-DD 格式，直接返回
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString
+    // 否则解析并格式化
+    const date = new Date(dateString)
+    return date.toISOString().slice(0, 10)
 }

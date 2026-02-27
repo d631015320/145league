@@ -44,10 +44,15 @@ function useFirebaseData() {
       (snapshot) => {
         const matches = snapshot.docs.map(doc => ({
           ...doc.data(),
-          id: doc.id
+          id: doc.id,
+          createdAt: doc.data().createdAt || null
         }));
-        // 按日期降序排列
-        matches.sort((a, b) => new Date(b.date) - new Date(a.date));
+        // 按录入顺序降序排列（优先 createdAt，兜底 date）
+        matches.sort((a, b) => {
+          const timeA = a.createdAt || a.date;
+          const timeB = b.createdAt || b.date;
+          return new Date(timeB) - new Date(timeA);
+        });
         setMatchHistory(matches);
         setLoading(false);
         setError(null);

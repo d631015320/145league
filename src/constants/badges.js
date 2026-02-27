@@ -2,6 +2,7 @@
 // 徽章定义配置 - 声明式徽章系统
 
 import { BADGE_CONFIG, GAMES_PER_SEASON, ATTENDANCE_TIERS } from './index'
+import { compareByEntryOrder } from '../lib/utils'
 
 /**
  * 徽章定义
@@ -19,15 +20,15 @@ export const BADGE_DEFINITIONS = [
     isSeasonBadge: true,
     condition: (context, seasonKey, matches) => {
       // 计算该赛季的出勤率
-      const myMatchesInSeason = matches.filter(m => 
+      const myMatchesInSeason = matches.filter(m =>
         m.results.some(r => r.name === context.player.name)
       ).length
       const totalMatchesInSeason = matches.length
-      
+
       if (totalMatchesInSeason === 0 || myMatchesInSeason === 0) return { earned: false }
-      
+
       const attendanceRate = myMatchesInSeason / totalMatchesInSeason
-      
+
       // 找到对应的出勤等级
       let tier = ATTENDANCE_TIERS[ATTENDANCE_TIERS.length - 1]
       for (const t of ATTENDANCE_TIERS) {
@@ -36,7 +37,7 @@ export const BADGE_DEFINITIONS = [
           break
         }
       }
-      
+
       // 只有达到"常客"及以上才显示勋章（出勤率≥55%）
       if (attendanceRate >= 0.55) {
         return {
@@ -131,17 +132,17 @@ export const BADGE_DEFINITIONS = [
     isSeasonBadge: true,
     condition: (context, seasonKey, matches) => {
       // 计算该赛季的胜率
-      const myMatches = matches.filter(m => 
+      const myMatches = matches.filter(m =>
         m.results.some(r => r.name === context.player.name)
       )
       if (myMatches.length < 3) return { earned: false }
-      
+
       const wins = myMatches.filter(m => {
         const result = m.results.find(r => r.name === context.player.name)
         return result && result.rank === 1
       }).length
       const winRate = wins / myMatches.length
-      
+
       if (winRate >= BADGE_CONFIG.RULER_WIN_RATE) {
         return {
           earned: true,
@@ -212,7 +213,7 @@ export const BADGE_DEFINITIONS = [
       })
       const myLuckyCount = luckyCounts[context.player.name] || 0
       const maxLucky = Math.max(0, ...Object.values(luckyCounts))
-      
+
       if (myLuckyCount > 0 && myLuckyCount >= maxLucky) {
         return {
           earned: true,
@@ -230,7 +231,7 @@ export const BADGE_DEFINITIONS = [
     description: `赛季参赛场次达到 ${BADGE_CONFIG.VETERAN_GAMES} 场以上`,
     isSeasonBadge: true,
     condition: (context, seasonKey, matches) => {
-      const myMatches = matches.filter(m => 
+      const myMatches = matches.filter(m =>
         m.results.some(r => r.name === context.player.name)
       ).length
       if (myMatches >= BADGE_CONFIG.VETERAN_GAMES) {
@@ -298,7 +299,7 @@ export const BADGE_DEFINITIONS = [
  * @returns {Object} 赛季映射 { S1: [...matches], S2: [...matches] }
  */
 export function buildSeasonsMap(history) {
-  const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date))
+  const sortedHistory = [...history].sort(compareByEntryOrder)
   const seasonsMap = {}
   sortedHistory.forEach((match, index) => {
     const seasonNum = Math.ceil((index + 1) / GAMES_PER_SEASON)

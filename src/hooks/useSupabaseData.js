@@ -57,12 +57,12 @@ function useSupabaseData() {
         console.error('Profile fetch error:', fetchError)
       } else {
         const profiles = {}
-        ;(data || []).forEach(row => {
-          profiles[row.name] = {
-            avatar: row.avatar,
-            realName: row.real_name || ''
-          }
-        })
+          ; (data || []).forEach(row => {
+            profiles[row.name] = {
+              avatar: row.avatar,
+              realName: row.real_name || ''
+            }
+          })
         setPlayerProfiles(profiles)
       }
     }
@@ -83,7 +83,7 @@ function useSupabaseData() {
             setMatchHistory(prev => [newMatch, ...prev])
           } else if (payload.eventType === 'UPDATE') {
             const updatedMatch = transformMatchFromDB(payload.new)
-            setMatchHistory(prev => prev.map(m => 
+            setMatchHistory(prev => prev.map(m =>
               m.id === updatedMatch.id ? updatedMatch : m
             ))
           } else if (payload.eventType === 'DELETE') {
@@ -146,6 +146,7 @@ function transformMatchFromDB(row) {
   return {
     id: row.id,
     date: row.date,
+    createdAt: row.created_at,
     results,
     roster: row.roster || [],
     transactions: row.transactions || [],

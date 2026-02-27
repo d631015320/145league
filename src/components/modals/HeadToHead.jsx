@@ -1,5 +1,6 @@
 // src/components/modals/HeadToHead.jsx
 import Icon from '../common/Icon';
+import { formatDate, compareByEntryOrder } from '../../lib/utils';
 
 /**
  * 宿敌对抗组件 - 显示两个玩家的交手记录
@@ -27,7 +28,7 @@ const HeadToHead = ({ player, opponent, history }) => {
         winner: p1.rank < p2.rank ? player.name : opponent
       };
     })
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+    .sort((a, b) => compareByEntryOrder(b, a));
 
   const total = matchups.length;
   const p1Wins = matchups.filter(m => m.winner === player.name).length;
@@ -70,7 +71,7 @@ const HeadToHead = ({ player, opponent, history }) => {
             key={i}
             className="flex justify-between items-center text-xs p-2 rounded bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700"
           >
-            <div className="font-mono text-slate-400">{m.date}</div>
+            <div className="font-mono text-slate-400">{formatDate(m.date)}</div>
             <div className="flex items-center gap-2">
               <span
                 className={

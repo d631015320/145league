@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react';
 import Icon from '../common/Icon';
 import Avatar from '../common/Avatar';
-import { calculateSettlements } from '../../lib/utils';
+import { calculateSettlements, formatDate } from '../../lib/utils';
 import { CHIP_EXCHANGE_RATE } from '../../constants';
 
 /**
@@ -44,10 +44,10 @@ const SettlementModal = ({ data, profiles, onClose }) => {
     };
 
     document.addEventListener('keydown', handleKeyDown);
-    
+
     // 自动聚焦到关闭按钮
     closeButtonRef.current?.focus();
-    
+
     // 防止背景滚动
     document.body.classList.add('modal-open');
 
@@ -65,9 +65,9 @@ const SettlementModal = ({ data, profiles, onClose }) => {
       aria-modal="true"
       aria-labelledby="settlement-modal-title"
     >
-      <div 
+      <div
         ref={modalRef}
-        className="w-full max-w-md relative" 
+        className="w-full max-w-md relative"
         onClick={e => e.stopPropagation()}
       >
         {/* 关闭按钮 */}
@@ -94,7 +94,7 @@ const SettlementModal = ({ data, profiles, onClose }) => {
               <h2 id="settlement-modal-title" className="text-2xl font-black tracking-tight">
                 本场结算单
               </h2>
-              <div className="mt-2 text-emerald-100/80 font-mono text-sm">{data.date}</div>
+              <div className="mt-2 text-emerald-100/80 font-mono text-sm">{formatDate(data.date)}</div>
             </div>
           </div>
 

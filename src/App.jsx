@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 
 // --- 常量 ---
 import { GAMES_PER_SEASON, TAB_CONFIG, NETWORK_TIMEOUT, DEFAULT_QUICK_AMOUNTS } from './constants';
+import { compareByEntryOrder } from './lib/utils';
 
 // --- 自定义 Hooks ---
 import useData from './hooks/useData'
@@ -38,7 +39,6 @@ const App = () => {
   // 使用自定义 Hooks
   const { matchHistory, playerProfiles, user, isAdmin, loading } = useData()
   const { theme, toggleTheme, isDark } = useTheme();
-  const leagueStats = useLeagueStats(matchHistory);
 
   // UI 状态
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -68,11 +68,24 @@ const App = () => {
   // 可用赛季列表
   const availableSeasons = useMemo(() => {
     if (matchHistory.length === 0) return ['S1'];
-    const seasonsCount = Math.ceil(matchHistory.length / GAMES_PER_SEASON);
+    const sorted = [...matchHistory].sort(compareByEntryOrder);
+    const seasonsCount = Math.ceil(sorted.length / GAMES_PER_SEASON);
     return Array.from({ length: seasonsCount }, (_, i) => `S${i + 1}`);
   }, [matchHistory]);
 
-  // 统计数据
+  // 当前赛季筛选后的比赛数据（用于 leagueStats 计算）
+  const seasonFilteredHistory = useMemo(() => {
+    if (selectedSeason === 'all') return matchHistory;
+    const sorted = [...matchHistory].sort(compareByEntryOrder);
+    const seasonIndex = parseInt(selectedSeason.slice(1)) - 1;
+    const start = seasonIndex * GAMES_PER_SEASON;
+    const end = start + GAMES_PER_SEASON;
+    return sorted.slice(start, end);
+  }, [matchHistory, selectedSeason]);
+
+  // 统计数据 — leagueStats 基于当前赛季数据计算，隔离各赛季
+  const leagueStats = useLeagueStats(seasonFilteredHistory);
+
   const statsData = useStatsCalculator(
     matchHistory,
     selectedSeason,
@@ -89,15 +102,9 @@ const App = () => {
     return Array.from(names).sort();
   }, [matchHistory, playerProfiles]);
 
-  // 排序后的历史记录
+  // 排序后的历史记录（按录入顺序：createdAt 升序）
   const sortedHistory = useMemo(() => {
-    return [...matchHistory].sort((a, b) => {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-      if (dateA < dateB) return 1;
-      if (dateA > dateB) return -1;
-      return String(b.id).localeCompare(String(a.id));
-    });
+    return [...matchHistory].sort(compareByEntryOrder);
   }, [matchHistory]);
 
   // 计算常用筹码金额（基于所有历史比赛）
@@ -149,16 +156,16 @@ const App = () => {
     };
   }, [sortedHistory]);
 
-  // 赛季归属映射
+  // 赛季归属映射（基于录入顺序）
   const matchSeasons = useMemo(() => {
     const map = {};
-    const ascHistory = [...matchHistory].sort((a, b) => new Date(a.date) - new Date(b.date));
-    ascHistory.forEach((match, index) => {
+    // 使用已排序的历史记录（录入顺序）
+    sortedHistory.forEach((match, index) => {
       const seasonNum = Math.ceil((index + 1) / GAMES_PER_SEASON);
       map[match.id] = `S${seasonNum}`;
     });
     return map;
-  }, [matchHistory]);
+  }, [sortedHistory]);
 
   // ===========================
   // C. 副作用 (Effects)
@@ -347,6 +354,9 @@ const App = () => {
               onEdit={handleStartEdit}
               onDelete={handleDeleteMatch}
               onSettle={setSettlementModalData}
+              selectedSeason={selectedSeason}
+              onSeasonChange={setSelectedSeason}
+              availableSeasons={availableSeasons}
             />
           )}
 
