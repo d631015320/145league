@@ -12,40 +12,55 @@ import { validateMatchData } from '../lib/matchValidation'
  * @returns {Promise<string>} 比赛ID
  */
 export async function saveMatch(matchData, matchId = null) {
-  // 数据校验
-  const { valid, errors } = validateMatchData(matchData)
-  if (!valid) {
-    throw new Error(`数据校验失败:\n${errors.join('\n')}`)
-  }
+  try {
+    // 数据校验
+    const { valid, errors } = validateMatchData(matchData)
+    if (!valid) {
+      console.error('数据校验失败:', errors)
+      throw new Error(`数据校验失败:\n${errors.join('\n')}`)
+    }
 
-  // 转换字段名（驼峰 → 下划线）
-  const dbData = {
-    date: matchData.date,
-    results: matchData.results || [],
-    roster: matchData.roster || [],
-    transactions: matchData.transactions || [],
-    final_stacks: matchData.finalStacks || {},
-    voted_mvp: matchData.votedMvp,
-    lucky_player: matchData.luckyPlayer
-  }
+    // 转换字段名（驼峰 → 下划线）
+    const dbData = {
+      date: matchData.date,
+      results: matchData.results || [],
+      roster: matchData.roster || [],
+      transactions: matchData.transactions || [],
+      final_stacks: matchData.finalStacks || {},
+      voted_mvp: matchData.votedMvp,
+      lucky_player: matchData.luckyPlayer
+    }
 
-  if (matchId) {
-    // 编辑时写入 updated_at
-    dbData.updated_at = new Date().toISOString()
-    const { error } = await supabase
-      .from('matches')
-      .update(dbData)
-      .eq('id', matchId)
-    if (error) throw new Error(`保存比赛失败: ${error.message}`)
-    return matchId
-  } else {
-    const { data, error } = await supabase
-      .from('matches')
-      .insert(dbData)
-      .select('id')
-      .single()
-    if (error) throw new Error(`保存比赛失败: ${error.message}`)
-    return data.id
+    console.log('准备保存的数据:', { matchId, dbData })
+
+    if (matchId) {
+      // 编辑模式：更新现有记录
+      const { error } = await supabase
+        .from('matches')
+        .update(dbData)
+        .eq('id', matchId)
+      
+      if (error) {
+        console.error('Supabase 更新错误:', error)
+        throw new Error(`保存比赛失败: ${error.message}`)
+      }
+      return matchId
+    } else {
+      const { data, error } = await supabase
+        .from('matches')
+        .insert(dbData)
+        .select('id')
+        .single()
+      
+      if (error) {
+        console.error('Supabase 插入错误:', error)
+        throw new Error(`保存比赛失败: ${error.message}`)
+      }
+      return data.id
+    }
+  } catch (error) {
+    console.error('saveMatch 完整错误:', error)
+    throw error
   }
 }
 

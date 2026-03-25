@@ -278,9 +278,20 @@ const NewGameForm = ({ isAdmin, allPlayerNames, playerProfiles, editingMatch, on
             score: Math.round((i < 10 ? BASE_SCORES[i] * factor : 0) * 100) / 100
         }));
         const matchData = {
-            date: gameDate, totalPlayers: sorted.length, results,
-            votedMvp, luckyPlayer, roster, transactions, finalStacks
+            date: gameDate, 
+            totalPlayers: sorted.length, 
+            results,
+            votedMvp, 
+            luckyPlayer, 
+            roster, 
+            transactions, 
+            finalStacks
         };
+        
+        // 调试信息
+        console.log('准备保存的比赛数据:', matchData);
+        console.log('编辑模式:', !!editingMatch);
+        
         localStorage.removeItem('match_draft');
         onSave(matchData);
         setRoster([]); setTransactions([]); setFinalStacks({}); setVotedMvp(''); setLuckyPlayer('');

@@ -186,11 +186,13 @@ const App = () => {
 
   const handleSaveGame = useCallback(async (matchData) => {
     try {
+      console.log('App.jsx 收到保存请求:', { matchData, editingMatchId });
       await saveMatch(matchData, editingMatchId);
       setEditingMatchId(null);
       setActiveTab('leaderboard');
     } catch (error) {
-      alert(error.message);
+      console.error('保存比赛失败:', error);
+      alert(`保存比赛失败: ${error.message}`);
     }
   }, [editingMatchId]);
 
