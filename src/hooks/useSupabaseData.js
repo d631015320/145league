@@ -3,14 +3,13 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 /**
- * 订阅 Supabase 数据
- * 封装 matchHistory、playerProfiles、user 的实时订阅
+ * 订阅 Supabase 数据（支持联赛过滤）
+ * @param {string|null} leagueId - 当前联赛ID，传 null 则不过滤
  */
-function useSupabaseData() {
+function useSupabaseData(leagueId = null) {
   const [matchHistory, setMatchHistory] = useState([])
   const [playerProfiles, setPlayerProfiles] = useState({})
   const [user, setUser] = useState(null)
-  const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -18,43 +17,63 @@ function useSupabaseData() {
     // 1. 获取当前用户状态
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
-      setIsAdmin(!!session?.user)
     })
 
     // 监听认证状态变化
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null)
-        setIsAdmin(!!session?.user)
       }
     )
 
-    // 2. 初始加载比赛数据
+    return () => authSubscription.unsubscribe()
+  }, [])
+
+  // 数据获取 — 当 leagueId 变化时重新加载
+  useEffect(() => {
+    // 重置状态
+    setLoading(true)
+    setMatchHistory([])
+    setPlayerProfiles({})
+
+    // 2. 加载比赛数据
     const fetchMatches = async () => {
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('matches')
         .select('*')
         .order('created_at', { ascending: false })
 
+      // 如果有联赛ID，按联赛过滤
+      if (leagueId) {
+        query = query.eq('league_id', leagueId)
+      }
+
+      const { data, error: fetchError } = await query
+
       if (fetchError) {
-        console.error('Match fetch error:', fetchError)
+        console.error('比赛数据加载失败:', fetchError)
         setError(fetchError)
       } else {
-        // 转换字段名（数据库用下划线，前端用驼峰）
         const matches = (data || []).map(transformMatchFromDB)
         setMatchHistory(matches)
       }
       setLoading(false)
     }
 
-    // 3. 初始加载玩家档案
+    // 3. 加载玩家档案
     const fetchProfiles = async () => {
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('profiles')
         .select('*')
 
+      if (leagueId) {
+        query = query.eq('league_id', leagueId)
+      }
+
+      const { data, error: fetchError } = await query
+
       if (fetchError) {
-        console.error('Profile fetch error:', fetchError)
+        console.error('玩家档案加载失败:', fetchError)
       } else {
         const profiles = {}
           ; (data || []).forEach(row => {
@@ -70,69 +89,66 @@ function useSupabaseData() {
     fetchMatches()
     fetchProfiles()
 
-    // 4. 实时订阅比赛数据变化
+    // 4. 实时订阅比赛数据变化（带联赛过滤）
+    const channelFilter = leagueId
+      ? { event: '*', schema: 'public', table: 'matches', filter: `league_id=eq.${leagueId}` }
+      : { event: '*', schema: 'public', table: 'matches' }
+
     const matchesChannel = supabase
-      .channel('matches-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'matches' },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newMatch = transformMatchFromDB(payload.new)
-            // 新比赛插入到最前面
-            setMatchHistory(prev => [newMatch, ...prev])
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedMatch = transformMatchFromDB(payload.new)
-            setMatchHistory(prev => prev.map(m =>
-              m.id === updatedMatch.id ? updatedMatch : m
-            ))
-          } else if (payload.eventType === 'DELETE') {
-            setMatchHistory(prev => prev.filter(m => m.id !== payload.old.id))
-          }
+      .channel(`matches-${leagueId || 'all'}`)
+      .on('postgres_changes', channelFilter, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newMatch = transformMatchFromDB(payload.new)
+          setMatchHistory(prev => [newMatch, ...prev])
+        } else if (payload.eventType === 'UPDATE') {
+          const updatedMatch = transformMatchFromDB(payload.new)
+          setMatchHistory(prev => prev.map(m =>
+            m.id === updatedMatch.id ? updatedMatch : m
+          ))
+        } else if (payload.eventType === 'DELETE') {
+          setMatchHistory(prev => prev.filter(m => m.id !== payload.old.id))
         }
-      )
+      })
       .subscribe()
 
-    // 5. 实时订阅玩家档案变化
+    // 5. 实时订阅玩家档案变化（带联赛过滤）
+    const profileFilter = leagueId
+      ? { event: '*', schema: 'public', table: 'profiles', filter: `league_id=eq.${leagueId}` }
+      : { event: '*', schema: 'public', table: 'profiles' }
+
     const profilesChannel = supabase
-      .channel('profiles-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'profiles' },
-        (payload) => {
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const row = payload.new
-            setPlayerProfiles(prev => ({
-              ...prev,
-              [row.name]: {
-                avatar: row.avatar,
-                realName: row.real_name || ''
-              }
-            }))
-          } else if (payload.eventType === 'DELETE') {
-            setPlayerProfiles(prev => {
-              const newProfiles = { ...prev }
-              delete newProfiles[payload.old.name]
-              return newProfiles
-            })
-          }
+      .channel(`profiles-${leagueId || 'all'}`)
+      .on('postgres_changes', profileFilter, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          const row = payload.new
+          setPlayerProfiles(prev => ({
+            ...prev,
+            [row.name]: {
+              avatar: row.avatar,
+              realName: row.real_name || ''
+            }
+          }))
+        } else if (payload.eventType === 'DELETE') {
+          setPlayerProfiles(prev => {
+            const newProfiles = { ...prev }
+            delete newProfiles[payload.old.name]
+            return newProfiles
+          })
         }
-      )
+      })
       .subscribe()
 
     // 清理订阅
     return () => {
-      authSubscription.unsubscribe()
       supabase.removeChannel(matchesChannel)
       supabase.removeChannel(profilesChannel)
     }
-  }, [])
+  }, [leagueId])  // leagueId 变化时重新订阅
 
   return {
     matchHistory,
     playerProfiles,
     user,
-    isAdmin,
     loading,
     error
   }
@@ -147,6 +163,7 @@ function transformMatchFromDB(row) {
     id: row.id,
     date: row.date,
     createdAt: row.created_at,
+    leagueId: row.league_id,
     results,
     roster: row.roster || [],
     transactions: row.transactions || [],

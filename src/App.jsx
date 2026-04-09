@@ -5,6 +5,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { GAMES_PER_SEASON, TAB_CONFIG, NETWORK_TIMEOUT, DEFAULT_QUICK_AMOUNTS } from './constants';
 import { compareByEntryOrder } from './lib/utils';
 
+// --- 联赛上下文 ---
+import { LeagueProvider, useLeagueContext } from './hooks/useLeagueContext';
+
 // --- 自定义 Hooks ---
 import useData from './hooks/useData'
 import useLeagueStats from './hooks/useLeagueStats';
@@ -31,14 +34,33 @@ import MatchHistoryTab from './components/tabs/MatchHistory.jsx';
 import NewGameFormTab from './components/tabs/NewGameForm.jsx';
 import SettingsTab from './components/tabs/Settings.jsx';
 
-const App = () => {
+/**
+ * 主应用内容（需在 LeagueProvider 内部使用）
+ */
+const AppContent = () => {
   // ===========================
   // A. 状态管理 (State)
   // ===========================
 
-  // 使用自定义 Hooks
-  const { matchHistory, playerProfiles, user, isAdmin, loading } = useData()
+  // 联赛上下文
+  const {
+    currentLeagueId,
+    currentLeague,
+    user,
+    isAdmin: leagueIsAdmin,
+    canEdit,
+    loading: leagueLoading
+  } = useLeagueContext();
+
+  // 使用自定义 Hooks（传入当前联赛ID实现数据隔离）
+  const { matchHistory, playerProfiles, loading: dataLoading } = useData(currentLeagueId)
   const { theme, toggleTheme, isDark } = useTheme();
+
+  // 综合 loading 状态
+  const loading = leagueLoading || dataLoading
+
+  // 权限判断（基于联赛角色）
+  const isAdmin = leagueIsAdmin
 
   // UI 状态
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -109,10 +131,8 @@ const App = () => {
 
   // 计算常用筹码金额（基于所有历史比赛）
   const frequentAmounts = useMemo(() => {
-    // 统计所有包含交易记录的比赛
     const validMatches = sortedHistory.filter(m => m.transactions && m.transactions.length > 0);
 
-    // 如果有效数据太少（少于 3 场），直接返回默认配置
     if (validMatches.length < 3) {
       return { list: DEFAULT_QUICK_AMOUNTS, hot: null };
     }
@@ -128,26 +148,20 @@ const App = () => {
       });
     });
 
-    // 按频率降序排列
     const topAmounts = Object.entries(frequency)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 4)
       .map(entry => parseInt(entry[0]));
 
-    // 如果分析结果为空，返回默认值
     if (topAmounts.length === 0) return { list: DEFAULT_QUICK_AMOUNTS, hot: null };
 
-    // 如果不足 4 个，补全默认值中不重复的
     if (topAmounts.length < 4) {
       DEFAULT_QUICK_AMOUNTS.forEach(d => {
         if (!topAmounts.includes(d)) topAmounts.push(d);
       });
     }
 
-    // 最终显示前 4 个，按金额从小到大排序
     const finalAmounts = topAmounts.slice(0, 4).sort((a, b) => a - b);
-
-    // 找出频率最高的金额 (The Hottest) - 即 topAmounts 中的第一个（因为它之前是按频率降序排的）
     const hottestAmount = topAmounts.length > 0 ? topAmounts[0] : null;
 
     return {
@@ -159,7 +173,6 @@ const App = () => {
   // 赛季归属映射（基于录入顺序）
   const matchSeasons = useMemo(() => {
     const map = {};
-    // 使用已排序的历史记录（录入顺序）
     sortedHistory.forEach((match, index) => {
       const seasonNum = Math.ceil((index + 1) / GAMES_PER_SEASON);
       map[match.id] = `S${seasonNum}`;
@@ -180,6 +193,12 @@ const App = () => {
     return () => clearTimeout(timer);
   }, [loading]);
 
+  // 切换联赛时重置赛季选择
+  useEffect(() => {
+    setSelectedSeason('all');
+    setEditingMatchId(null);
+  }, [currentLeagueId]);
+
   // ===========================
   // D. 事件处理 (Handlers)
   // ===========================
@@ -187,14 +206,15 @@ const App = () => {
   const handleSaveGame = useCallback(async (matchData) => {
     try {
       console.log('App.jsx 收到保存请求:', { matchData, editingMatchId });
-      await saveMatch(matchData, editingMatchId);
+      // 传入当前联赛ID
+      await saveMatch(matchData, editingMatchId, currentLeagueId);
       setEditingMatchId(null);
       setActiveTab('leaderboard');
     } catch (error) {
       console.error('保存比赛失败:', error);
       alert(`保存比赛失败: ${error.message}`);
     }
-  }, [editingMatchId]);
+  }, [editingMatchId, currentLeagueId]);
 
   const handleDeleteMatch = useCallback(async (id) => {
     if (confirm('确认删除这场比赛记录吗?')) {
@@ -277,92 +297,104 @@ const App = () => {
   }
 
   return (
-    <ErrorBoundary>
-      <div className="min-h-screen pb-20 md:pb-0 transition-colors duration-300">
-        {/* 顶部导航 */}
-        <Header
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-        />
+    <div className="min-h-screen pb-20 md:pb-0 transition-colors duration-300">
+      {/* 顶部导航 */}
+      <Header
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
 
-        {/* 网络错误提示 */}
-        {showNetworkAlert && loading && (
-          <div
-            className="bg-amber-500/10 border-l-4 border-amber-500 text-amber-700 dark:text-amber-400 p-4 mx-4 mt-4 rounded shadow-md flex justify-between items-start animate-slide-up"
-            role="alert"
-            aria-live="polite"
-          >
-            <div className="flex gap-3">
-              <Icon name="wifi-off" className="w-5 h-5 flex-shrink-0 mt-0.5" aria-hidden="true" />
-              <div>
-                <p className="font-bold text-sm">数据同步超时</p>
-                <p className="text-xs opacity-90 mt-1">请检查网络环境，或刷新重试。</p>
-              </div>
+      {/* 网络错误提示 */}
+      {showNetworkAlert && loading && (
+        <div
+          className="bg-amber-500/10 border-l-4 border-amber-500 text-amber-700 dark:text-amber-400 p-4 mx-4 mt-4 rounded shadow-md flex justify-between items-start animate-slide-up"
+          role="alert"
+          aria-live="polite"
+        >
+          <div className="flex gap-3">
+            <Icon name="wifi-off" className="w-5 h-5 flex-shrink-0 mt-0.5" aria-hidden="true" />
+            <div>
+              <p className="font-bold text-sm">数据同步超时</p>
+              <p className="text-xs opacity-90 mt-1">请检查网络环境，或刷新重试。</p>
             </div>
-            <button
-              onClick={() => window.location.reload()}
-              aria-label="刷新页面重新加载数据"
-              className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded hover:bg-amber-600"
-            >
-              刷新
-            </button>
           </div>
+          <button
+            onClick={() => window.location.reload()}
+            aria-label="刷新页面重新加载数据"
+            className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded hover:bg-amber-600"
+          >
+            刷新
+          </button>
+        </div>
+      )}
+
+      {/* 当前联赛信息条 */}
+      {currentLeague && !loading && (
+        <div className="max-w-7xl mx-auto px-4 mt-2">
+          <div className="text-[11px] text-slate-400 dark:text-slate-500">
+            当前联赛: <span className="font-medium text-slate-600 dark:text-slate-300">{currentLeague.name}</span>
+            {currentLeague.description && (
+              <span className="ml-2">{currentLeague.description}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 主内容区域 */}
+      <main className="max-w-7xl mx-auto mt-8 px-4 space-y-8 animate-slide-up">
+        {activeTab === 'dashboard' && (
+          <DashboardTab
+            statsData={statsData}
+            selectedSeason={selectedSeason}
+            availableSeasons={availableSeasons}
+            onSeasonChange={setSelectedSeason}
+            onPlayerClick={setSelectedPlayer}
+            onNavigateToHistory={() => setActiveTab('history')}
+            GAMES_PER_SEASON={GAMES_PER_SEASON}
+          />
         )}
 
-        {/* 主内容区域 */}
-        <main className="max-w-7xl mx-auto mt-8 px-4 space-y-8 animate-slide-up">
-          {activeTab === 'dashboard' && (
-            <DashboardTab
-              statsData={statsData}
-              selectedSeason={selectedSeason}
-              availableSeasons={availableSeasons}
-              onSeasonChange={setSelectedSeason}
-              onPlayerClick={setSelectedPlayer}
-              onNavigateToHistory={() => setActiveTab('history')}
-              GAMES_PER_SEASON={GAMES_PER_SEASON}
-            />
-          )}
+        {activeTab === 'leaderboard' && (
+          <LeaderboardTab
+            data={statsData.leaderboardData}
+            sortConfig={sortConfig}
+            onSort={handleSort}
+            onPlayerClick={setSelectedPlayer}
+            isSelectionMode={isSelectionMode}
+            toggleSelectionMode={() => setIsSelectionMode(!isSelectionMode)}
+            selectedPlayerNames={selectedPlayerNames}
+            togglePlayerSelection={togglePlayerSelection}
+            showSelectedOnly={showSelectedOnly}
+            setShowSelectedOnly={setShowSelectedOnly}
+            onClearSelection={() => setSelectedPlayerNames(new Set())}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            selectedSeason={selectedSeason}
+            onSeasonChange={setSelectedSeason}
+            availableSeasons={availableSeasons}
+            GAMES_PER_SEASON={GAMES_PER_SEASON}
+          />
+        )}
 
-          {activeTab === 'leaderboard' && (
-            <LeaderboardTab
-              data={statsData.leaderboardData}
-              sortConfig={sortConfig}
-              onSort={handleSort}
-              onPlayerClick={setSelectedPlayer}
-              isSelectionMode={isSelectionMode}
-              toggleSelectionMode={() => setIsSelectionMode(!isSelectionMode)}
-              selectedPlayerNames={selectedPlayerNames}
-              togglePlayerSelection={togglePlayerSelection}
-              showSelectedOnly={showSelectedOnly}
-              setShowSelectedOnly={setShowSelectedOnly}
-              onClearSelection={() => setSelectedPlayerNames(new Set())}
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              selectedSeason={selectedSeason}
-              onSeasonChange={setSelectedSeason}
-              availableSeasons={availableSeasons}
-              GAMES_PER_SEASON={GAMES_PER_SEASON}
-            />
-          )}
+        {activeTab === 'history' && (
+          <MatchHistoryTab
+            matches={sortedHistory}
+            matchSeasons={matchSeasons}
+            isAdmin={isAdmin}
+            highlightMatchId={editingMatchId}
+            onEdit={handleStartEdit}
+            onDelete={handleDeleteMatch}
+            onSettle={setSettlementModalData}
+            selectedSeason={selectedSeason}
+            onSeasonChange={setSelectedSeason}
+            availableSeasons={availableSeasons}
+          />
+        )}
 
-          {activeTab === 'history' && (
-            <MatchHistoryTab
-              matches={sortedHistory}
-              matchSeasons={matchSeasons}
-              isAdmin={isAdmin}
-              highlightMatchId={editingMatchId}
-              onEdit={handleStartEdit}
-              onDelete={handleDeleteMatch}
-              onSettle={setSettlementModalData}
-              selectedSeason={selectedSeason}
-              onSeasonChange={setSelectedSeason}
-              availableSeasons={availableSeasons}
-            />
-          )}
-
-          {activeTab === 'newGame' && (
+        {activeTab === 'newGame' && (
+          canEdit ? (
             <NewGameFormTab
               key={editingMatchId || 'new'}
               isAdmin={isAdmin}
@@ -371,91 +403,109 @@ const App = () => {
               editingMatch={matchHistory.find(m => m.id === editingMatchId)}
               onSave={handleSaveGame}
               onCancelEdit={() => {
-                // 🔥 取消编辑时先清除草稿，再重置编辑状态
                 localStorage.removeItem('match_draft')
                 setEditingMatchId(null)
               }}
               quickAmounts={frequentAmounts}
             />
-          )}
+          ) : (
+            <div className="text-center py-20">
+              <Icon name="lock" className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+              <p className="text-slate-500 dark:text-slate-400 text-lg font-medium">无录入权限</p>
+              <p className="text-slate-400 dark:text-slate-500 text-sm mt-2">你在此联赛中为只读角色，无法录入比赛数据</p>
+            </div>
+          )
+        )}
 
-          {activeTab === 'settings' && (
-            <SettingsTab
-              user={user}
-              isAdmin={isAdmin}
-              allPlayerNames={allPlayerNames}
-              playerProfiles={playerProfiles}
-              matchHistory={matchHistory}
-              onTriggerSecurity={handleTriggerSecurity}
-            />
-          )}
-        </main>
-
-        {/* 全局弹窗层 */}
-        {selectedPlayer && (
-          <PlayerProfileModal
-            player={selectedPlayer}
-            history={matchHistory}
-            onClose={() => setSelectedPlayer(null)}
-            onUploadAvatar={handleUploadAvatar}
-            isDark={isDark}
-            leagueStats={leagueStats}
-            onNavigateToMatch={handleNavigateToMatch}
+        {activeTab === 'settings' && (
+          <SettingsTab
+            user={user}
+            isAdmin={isAdmin}
             allPlayerNames={allPlayerNames}
             playerProfiles={playerProfiles}
-            leaderboardData={statsData.leaderboardData}
-            seasonTotalGames={statsData.seasonStats.totalGames}
-            selectedSeason={selectedSeason}
+            matchHistory={matchHistory}
+            onTriggerSecurity={handleTriggerSecurity}
           />
         )}
+      </main>
 
-        {settlementModalData && (
-          <SettlementModal
-            data={settlementModalData}
-            profiles={playerProfiles}
-            onClose={() => setSettlementModalData(null)}
-          />
-        )}
-
-        <SecurityModal
-          isOpen={isSecModalOpen}
-          onClose={() => setIsSecModalOpen(false)}
-          onConfirm={confirmSecurity}
-          title={pendingAction?.type === 'clear' ? '确认清空数据' : '确认导入数据'}
-          message={
-            pendingAction?.type === 'clear'
-              ? '您正在尝试删除云端的所有数据。此操作不可逆！'
-              : '导入本地数据将会合并或覆盖现有的云端数据。'
-          }
+      {/* 全局弹窗层 */}
+      {selectedPlayer && (
+        <PlayerProfileModal
+          player={selectedPlayer}
+          history={matchHistory}
+          onClose={() => setSelectedPlayer(null)}
+          onUploadAvatar={handleUploadAvatar}
+          isDark={isDark}
+          leagueStats={leagueStats}
+          onNavigateToMatch={handleNavigateToMatch}
+          allPlayerNames={allPlayerNames}
+          playerProfiles={playerProfiles}
+          leaderboardData={statsData.leaderboardData}
+          seasonTotalGames={statsData.seasonStats.totalGames}
+          selectedSeason={selectedSeason}
         />
+      )}
 
-        {/* 移动端底部导航栏 - 增强版 */}
-        <nav
-          className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-[#0b0e14]/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 z-50 safe-area-bottom"
-          role="navigation"
-          aria-label="移动端主导航"
-        >
-          <div className="flex justify-around items-center h-16 px-1">
-            {TAB_CONFIG.map(t => (
-              <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id)}
-                aria-label={`切换到${t.label}页面`}
-                aria-current={activeTab === t.id ? 'page' : undefined}
-                className={`nav-item flex-1 flex flex-col items-center justify-center min-h-[44px] min-w-[44px] py-2 mx-0.5 rounded-xl transition-all touch-feedback ${activeTab === t.id
-                  ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
-                  : 'text-slate-400 dark:text-slate-500 active:bg-slate-100 dark:active:bg-slate-800'
-                  }`}
-              >
-                <Icon name={t.icon} className="w-6 h-6" aria-hidden="true" />
-                <span className={`text-[10px] font-medium mt-1 ${activeTab === t.id ? 'font-bold' : ''}`}>
-                  {t.label}
-                </span>
-              </button>
-            ))}
-          </div>
-        </nav>
-      </div>
+      {settlementModalData && (
+        <SettlementModal
+          data={settlementModalData}
+          profiles={playerProfiles}
+          onClose={() => setSettlementModalData(null)}
+        />
+      )}
+
+      <SecurityModal
+        isOpen={isSecModalOpen}
+        onClose={() => setIsSecModalOpen(false)}
+        onConfirm={confirmSecurity}
+        title={pendingAction?.type === 'clear' ? '确认清空数据' : '确认导入数据'}
+        message={
+          pendingAction?.type === 'clear'
+            ? '您正在尝试删除云端的所有数据。此操作不可逆！'
+            : '导入本地数据将会合并或覆盖现有的云端数据。'
+        }
+      />
+
+      {/* 移动端底部导航栏 */}
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-[#0b0e14]/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 z-50 safe-area-bottom"
+        role="navigation"
+        aria-label="移动端主导航"
+      >
+        <div className="flex justify-around items-center h-16 px-1">
+          {TAB_CONFIG.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              aria-label={`切换到${t.label}页面`}
+              aria-current={activeTab === t.id ? 'page' : undefined}
+              className={`nav-item flex-1 flex flex-col items-center justify-center min-h-[44px] min-w-[44px] py-2 mx-0.5 rounded-xl transition-all touch-feedback ${activeTab === t.id
+                ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
+                : 'text-slate-400 dark:text-slate-500 active:bg-slate-100 dark:active:bg-slate-800'
+                }`}
+            >
+              <Icon name={t.icon} className="w-6 h-6" aria-hidden="true" />
+              <span className={`text-[10px] font-medium mt-1 ${activeTab === t.id ? 'font-bold' : ''}`}>
+                {t.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </nav>
+    </div>
+  );
+};
+
+/**
+ * 根组件 — 用 LeagueProvider 包裹
+ */
+const App = () => {
+  return (
+    <ErrorBoundary>
+      <LeagueProvider>
+        <AppContent />
+      </LeagueProvider>
     </ErrorBoundary>
   );
 };

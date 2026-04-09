@@ -9,9 +9,10 @@ import { validateMatchData } from '../lib/matchValidation'
  * 保存比赛记录
  * @param {Object} matchData - 比赛数据
  * @param {string} [matchId] - 编辑时的比赛ID
+ * @param {string} [leagueId] - 联赛ID
  * @returns {Promise<string>} 比赛ID
  */
-export async function saveMatch(matchData, matchId = null) {
+export async function saveMatch(matchData, matchId = null, leagueId = null) {
   try {
     // 数据校验
     const { valid, errors } = validateMatchData(matchData)
@@ -31,6 +32,11 @@ export async function saveMatch(matchData, matchId = null) {
       lucky_player: matchData.luckyPlayer
     }
 
+    // 新建时必须带联赛ID
+    if (!matchId && leagueId) {
+      dbData.league_id = leagueId
+    }
+
     console.log('准备保存的数据:', { matchId, dbData })
 
     if (matchId) {
@@ -39,7 +45,7 @@ export async function saveMatch(matchData, matchId = null) {
         .from('matches')
         .update(dbData)
         .eq('id', matchId)
-      
+
       if (error) {
         console.error('Supabase 更新错误:', error)
         throw new Error(`保存比赛失败: ${error.message}`)
@@ -51,7 +57,7 @@ export async function saveMatch(matchData, matchId = null) {
         .insert(dbData)
         .select('id')
         .single()
-      
+
       if (error) {
         console.error('Supabase 插入错误:', error)
         throw new Error(`保存比赛失败: ${error.message}`)
@@ -80,12 +86,17 @@ export async function deleteMatch(matchId) {
  * 更新玩家档案
  * @param {string} playerName - 玩家名
  * @param {Object} data - 档案数据
+ * @param {string} [leagueId] - 联赛ID
  */
-export async function updatePlayerProfile(playerName, data) {
+export async function updatePlayerProfile(playerName, data, leagueId = null) {
   const dbData = {
     name: playerName,
     avatar: data.avatar,
     real_name: data.realName
+  }
+
+  if (leagueId) {
+    dbData.league_id = leagueId
   }
 
   const { error } = await supabase
@@ -117,9 +128,10 @@ export async function updateRealName(playerName, realName) {
  * @param {string} oldName - 原名
  * @param {string} newName - 新名
  * @param {Array} matchHistory - 比赛历史
+ * @param {string} [leagueId] - 联赛ID（profile 迁移用）
  * @returns {Promise<number>} 更新的比赛数量
  */
-export async function renamePlayer(oldName, newName, matchHistory) {
+export async function renamePlayer(oldName, newName, matchHistory, leagueId = null) {
   let updatedCount = 0
 
   for (const m of matchHistory) {
@@ -183,13 +195,15 @@ export async function renamePlayer(oldName, newName, matchHistory) {
     .single()
 
   if (oldProfile) {
+    const profileData = {
+      name: newName,
+      avatar: oldProfile.avatar,
+      real_name: oldProfile.real_name
+    }
+    if (leagueId) profileData.league_id = leagueId
     await supabase
       .from('profiles')
-      .upsert({
-        name: newName,
-        avatar: oldProfile.avatar,
-        real_name: oldProfile.real_name
-      })
+      .upsert(profileData)
     await supabase.from('profiles').delete().eq('name', oldName)
   }
 

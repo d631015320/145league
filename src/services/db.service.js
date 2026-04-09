@@ -9,7 +9,7 @@ import * as supabaseService from './supabase.service'
 
 const service = DB_PROVIDER === 'supabase' ? supabaseService : firebaseService
 
-// 导出统一接口
+// 导出统一接口（支持 leagueId 参数）
 export const saveMatch = service.saveMatch
 export const deleteMatch = service.deleteMatch
 export const updatePlayerProfile = service.updatePlayerProfile
@@ -23,3 +23,16 @@ export const signOut = service.signOut
 
 // 导出备份功能（两者通用）
 export { exportDataToJSON, downloadBackup } from './firebase.service'
+
+// 联赛管理服务（Supabase 专用）
+export {
+    getMyLeagues,
+    getAllLeagues,
+    createLeague,
+    getLeagueMembers,
+    inviteMember,
+    removeMember,
+    updateMemberRole,
+    updateLeagueSettings,
+    getMyRole
+} from './league.service'

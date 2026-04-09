@@ -1,6 +1,7 @@
 // src/components/layout/Header.jsx
 import Icon from '../common/Icon';
 import Clock from '../common/Clock';
+import LeagueSwitcher from '../common/LeagueSwitcher';
 import { TAB_CONFIG } from '../../constants';
 
 /**
@@ -68,6 +69,9 @@ const Header = ({ activeTab, onTabChange, theme, onToggleTheme }) => {
               />
             </div>
           </div>
+
+          {/* 联赛切换器 */}
+          <LeagueSwitcher />
         </div>
 
         {/* 桌面端 Tab */}
